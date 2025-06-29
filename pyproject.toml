@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cgm-mcp"
+version = "0.1.0"
+description = "MCP Server for CodeFuse-CGM: Graph-Integrated Large Language Model for Repository-Level Software Engineering Tasks"
+authors = [
+    {name = "CGM MCP Team", email = "cgm-mcp@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "mcp>=0.9.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "transformers>=4.46.1",
+    "tokenizers>=0.20.0",
+    "accelerate>=1.0.1",
+    "peft>=0.13.2",
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "networkx>=3.0",
+    "pygraphviz>=1.11",
+    "jinja2>=2.11.3",
+    "fuzzywuzzy>=0.18.0",
+    "python-Levenshtein>=0.25.1",
+    "aiofiles>=23.0.0",
+    "httpx>=0.25.0",
+    "python-dotenv>=1.0.0",
+    "loguru>=0.7.0",
+    "cachetools>=5.3.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/codefuse-ai/CodeFuse-CGM"
+Repository = "https://github.com/yangweijie/cgm-mcp"
+Documentation = "https://github.com/yangweijie/cgm-mcp/blob/main/README.md"
+
+[project.scripts]
+cgm-mcp = "cgm_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+exclude = [
+    "venv/",
+    "build/",
+    "dist/"
+]
