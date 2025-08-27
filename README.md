@@ -159,6 +159,41 @@ ollama pull deepseek-coder:6.7b
 ./scripts/start_local.sh --provider lmstudio
 ```
 
+
+### Start via uvx (recommended)
+
+Use uvx to run the server directly from this repo without installing globally. Choose one:
+
+- Full CGM MCP server (requires LLM provider and API key):
+  ```bash
+  uvx -q --from git+https://github.com/yangweijie/cgm-mcp cgm-mcp
+  ```
+
+- Modelless CGM MCP server (no API keys, pure analysis tools):
+  ```bash
+  uvx -q --from git+https://github.com/yangweijie/cgm-mcp cgm-mcp-modelless
+  ```
+
+MCP client configuration examples (Claude Desktop):
+
+```json
+{
+  "mcpServers": {
+    "cgm": {
+      "command": "uvx",
+      "args": ["-q", "--from", "git+https://github.com/yangweijie/cgm-mcp", "cgm-mcp-modelless"],
+      "env": { "CGM_LOG_LEVEL": "INFO" }
+    }
+  }
+}
+```
+
+Note: if you fork this repository under your own account (e.g., github.com/jcoffi/cgm-mcp), replace the URL in the examples with your fork:
+
+```bash
+uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp-modelless
+```
+
 ### 3. Start the Server
 
 ```bash

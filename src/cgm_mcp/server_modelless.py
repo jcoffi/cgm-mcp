@@ -729,7 +729,7 @@ class ModellessCGMServer:
 
 
 async def main():
-    """Main entry point for modelless server"""
+    """Main async entry point for modelless server"""
     try:
         config = Config.load()
         server = ModellessCGMServer(config)
@@ -740,5 +740,10 @@ async def main():
         raise
 
 
-if __name__ == "__main__":
+def cli():
+    """Synchronous CLI entry point for console_scripts"""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    cli()

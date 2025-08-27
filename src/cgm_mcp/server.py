@@ -363,11 +363,16 @@ class CGMServer:
 
 
 async def main():
-    """Main entry point"""
+    """Main async entry point"""
     config = Config.load()
     server = CGMServer(config)
     await server.run()
 
 
-if __name__ == "__main__":
+def cli():
+    """Synchronous CLI entry point for console_scripts"""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    cli()
