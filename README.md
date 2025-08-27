@@ -163,17 +163,17 @@ ollama pull deepseek-coder:6.7b
 ### Start via uvx (recommended)
 
 
-Replace YOUR_GITHUB_USERNAME with your GitHub username or org.
+Replace jcoffi with your GitHub username or org.
 
 
 - Full CGM MCP server (requires LLM provider and API key):
   ```bash
-  uvx -q --from git+https://github.com/YOUR_GITHUB_USERNAME/cgm-mcp cgm-mcp
+  uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp
   ```
 
 - Modelless CGM MCP server (no API keys, pure analysis tools):
   ```bash
-  uvx -q --from git+https://github.com/YOUR_GITHUB_USERNAME/cgm-mcp cgm-mcp-modelless
+  uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp-modelless
   ```
 
 MCP client configuration examples (Claude Desktop):
@@ -183,7 +183,7 @@ MCP client configuration examples (Claude Desktop):
   "mcpServers": {
     "cgm": {
       "command": "uvx",
-      "args": ["-q", "--from", "git+https://github.com/YOUR_GITHUB_USERNAME/cgm-mcp", "cgm-mcp-modelless"],
+      "args": ["-q", "--from", "git+https://github.com/jcoffi/cgm-mcp", "cgm-mcp-modelless"],
       "env": { "CGM_LOG_LEVEL": "INFO" }
     }
   }
@@ -194,10 +194,10 @@ Note: if you fork this repository under your own account (e.g., github.com/jcoff
 
 ```bash
 # Full CGM MCP server (requires LLM provider and API key)
-uvx -q --from git+https://github.com/YOUR_GITHUB_USERNAME/cgm-mcp cgm-mcp
+uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp
 
 # Modelless CGM MCP server (no API keys, pure analysis tools)
-uvx -q --from git+https://github.com/YOUR_GITHUB_USERNAME/cgm-mcp cgm-mcp-modelless
+uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp-modelless
 ```
 
 ### 3. Start the Server
