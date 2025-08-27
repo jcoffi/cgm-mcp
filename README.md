@@ -166,12 +166,12 @@ Use uvx to run the server directly from this repo without installing globally. C
 
 - Full CGM MCP server (requires LLM provider and API key):
   ```bash
-  uvx -q --from git+https://github.com/yangweijie/cgm-mcp cgm-mcp
+  uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp
   ```
 
 - Modelless CGM MCP server (no API keys, pure analysis tools):
   ```bash
-  uvx -q --from git+https://github.com/yangweijie/cgm-mcp cgm-mcp-modelless
+  uvx -q --from git+https://github.com/jcoffi/cgm-mcp cgm-mcp-modelless
   ```
 
 MCP client configuration examples (Claude Desktop):
@@ -181,7 +181,7 @@ MCP client configuration examples (Claude Desktop):
   "mcpServers": {
     "cgm": {
       "command": "uvx",
-      "args": ["-q", "--from", "git+https://github.com/yangweijie/cgm-mcp", "cgm-mcp-modelless"],
+      "args": ["-q", "--from", "git+https://github.com/jcoffi/cgm-mcp", "cgm-mcp-modelless"],
       "env": { "CGM_LOG_LEVEL": "INFO" }
     }
   }
