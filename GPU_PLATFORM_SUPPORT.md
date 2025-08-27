@@ -1,15 +1,15 @@
-# CGM MCP GPU加速平台支持分析
+# CGM MCP GPU Acceleration Platform Support Analysis
 
-## 🍎 Apple ARM芯片 (M1/M2/M3) 支持
+## 🍎 Apple ARM Chip (M1/M2/M3) Support
 
-### ✅ 支持情况
-**Apple Silicon完全支持！** 我们的实现已经针对Apple ARM芯片进行了优化。
+### ✅ Support Status
+**Apple Silicon is fully supported!** Our implementation has been optimized for Apple ARM chips.
 
-### 🔧 技术实现
+### 🔧 Technical Implementation
 
-#### 1. **PyTorch MPS (Metal Performance Shaders) 支持**
+#### 1. **PyTorch MPS (Metal Performance Shaders) Support**
 ```python
-# 自动检测Apple Silicon GPU
+# Automatic Apple Silicon GPU detection
 if torch.backends.mps.is_available() and torch.backends.mps.is_built():
     device = torch.device('mps')  # Apple GPU
     gpu_available = True
@@ -19,53 +19,53 @@ else:
     device = torch.device('cpu')   # CPU fallback
 ```
 
-#### 2. **Apple优化的依赖**
+#### 2. **Apple-optimized Dependencies**
 ```bash
-# Apple Silicon优化版本
-pip install torch torchvision torchaudio  # 自动选择Apple Silicon版本
-pip install numpy                         # Apple Accelerate框架优化
+# Apple Silicon optimized versions
+pip install torch torchvision torchaudio  # Automatically selects Apple Silicon version
+pip install numpy                         # Apple Accelerate framework optimized
 ```
 
-### 📊 Apple Silicon性能数据
+### 📊 Apple Silicon Performance Data
 
-| 芯片型号 | 预期加速比 | 内存带宽 | 适用场景 |
-|----------|------------|----------|----------|
-| M1 | 3-5x | 68.25 GB/s | 中小型项目 |
-| M1 Pro | 4-6x | 200 GB/s | 大型项目 |
-| M1 Max | 5-8x | 400 GB/s | 企业级项目 |
-| M2 | 3-5x | 100 GB/s | 中型项目 |
-| M2 Pro | 4-7x | 200 GB/s | 大型项目 |
-| M2 Max | 6-10x | 400 GB/s | 企业级项目 |
-| M3 | 4-6x | 100 GB/s | 最新优化 |
+| Chip Model | Expected Speedup | Memory Bandwidth | Use Cases |
+|------------|------------------|------------------|-----------|
+| M1 | 3-5x | 68.25 GB/s | Small to medium projects |
+| M1 Pro | 4-6x | 200 GB/s | Large projects |
+| M1 Max | 5-8x | 400 GB/s | Enterprise projects |
+| M2 | 3-5x | 100 GB/s | Medium projects |
+| M2 Pro | 4-7x | 200 GB/s | Large projects |
+| M2 Max | 6-10x | 400 GB/s | Enterprise projects |
+| M3 | 4-6x | 100 GB/s | Latest optimizations |
 
-### 🚀 Apple Silicon优势
-- **统一内存架构**: CPU和GPU共享内存，数据传输极快
-- **低功耗**: 相比独立GPU功耗更低
-- **原生支持**: macOS原生优化，无需额外驱动
-- **Metal框架**: 苹果优化的GPU计算框架
+### 🚀 Apple Silicon Advantages
+- **Unified Memory Architecture**: CPU and GPU share memory, extremely fast data transfer
+- **Low Power Consumption**: Lower power consumption compared to discrete GPUs
+- **Native Support**: macOS native optimization, no additional drivers needed
+- **Metal Framework**: Apple's optimized GPU computing framework
 
-## 🔴 AMD显卡支持
+## 🔴 AMD Graphics Card Support
 
-### ⚠️ 支持情况
-**部分支持，需要额外配置**
+### ⚠️ Support Status
+**Partial support, requires additional configuration**
 
-### 🔧 AMD GPU支持方案
+### 🔧 AMD GPU Support Solutions
 
-#### 1. **ROCm (Linux) 支持**
+#### 1. **ROCm (Linux) Support**
 ```bash
-# Linux环境下的AMD GPU支持
+# AMD GPU support in Linux environment
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.6
 
-# 验证AMD GPU
-python -c "import torch; print(torch.cuda.is_available())"  # 应该返回True
+# Verify AMD GPU
+python -c "import torch; print(torch.cuda.is_available())"  # Should return True
 ```
 
-#### 2. **OpenCL支持 (跨平台)**
+#### 2. **OpenCL Support (Cross-platform)**
 ```python
-# 使用PyOpenCL进行AMD GPU计算
+# Using PyOpenCL for AMD GPU computation
 import pyopencl as cl
 
-# 检测AMD GPU
+# Detect AMD GPU
 platforms = cl.get_platforms()
 amd_devices = []
 for platform in platforms:
@@ -73,37 +73,37 @@ for platform in platforms:
         amd_devices.extend(platform.get_devices())
 ```
 
-#### 3. **DirectML支持 (Windows)**
+#### 3. **DirectML Support (Windows)**
 ```bash
-# Windows环境下的AMD GPU支持
+# AMD GPU support in Windows environment
 pip install torch-directml
 ```
 
-### 📊 AMD GPU兼容性
+### 📊 AMD GPU Compatibility
 
-| AMD系列 | Linux ROCm | Windows DirectML | macOS | 推荐度 |
-|---------|------------|------------------|-------|--------|
-| RX 6000系列 | ✅ 完全支持 | ✅ 支持 | ❌ 不支持 | ⭐⭐⭐⭐ |
-| RX 7000系列 | ✅ 完全支持 | ✅ 支持 | ❌ 不支持 | ⭐⭐⭐⭐⭐ |
-| Vega系列 | ✅ 支持 | ⚠️ 部分支持 | ❌ 不支持 | ⭐⭐⭐ |
-| Polaris系列 | ⚠️ 部分支持 | ⚠️ 部分支持 | ❌ 不支持 | ⭐⭐ |
+| AMD Series | Linux ROCm | Windows DirectML | macOS | Recommendation |
+|------------|------------|------------------|-------|----------------|
+| RX 6000 Series | ✅ Full Support | ✅ Supported | ❌ Not Supported | ⭐⭐⭐⭐ |
+| RX 7000 Series | ✅ Full Support | ✅ Supported | ❌ Not Supported | ⭐⭐⭐⭐⭐ |
+| Vega Series | ✅ Supported | ⚠️ Partial Support | ❌ Not Supported | ⭐⭐⭐ |
+| Polaris Series | ⚠️ Partial Support | ⚠️ Partial Support | ❌ Not Supported | ⭐⭐ |
 
-## 🛠️ 平台特定实现
+## 🛠️ Platform-Specific Implementation
 
-### Apple Silicon优化版本
+### Apple Silicon Optimized Version
 
 ```python
 class AppleSiliconGPUAccelerator(GPUAccelerator):
-    """Apple Silicon优化的GPU加速器"""
+    """Apple Silicon optimized GPU accelerator"""
     
     def _setup_device(self):
-        """Apple Silicon设备设置"""
+        """Apple Silicon device setup"""
         if torch.backends.mps.is_available() and self.config.use_gpu:
             self.device = torch.device('mps')
             self.gpu_available = True
             self.platform = "Apple Silicon"
             
-            # Apple Silicon特定优化
+            # Apple Silicon specific optimizations
             torch.mps.set_per_process_memory_fraction(self.config.gpu_memory_fraction)
             
             logger.info(f"Apple Silicon GPU acceleration enabled")
@@ -111,24 +111,24 @@ class AppleSiliconGPUAccelerator(GPUAccelerator):
             super()._setup_device()
     
     def _optimize_for_apple_silicon(self, tensor):
-        """Apple Silicon特定优化"""
-        # 利用统一内存架构
+        """Apple Silicon specific optimizations"""
+        # Leverage unified memory architecture
         if self.device.type == 'mps':
-            # 避免不必要的内存拷贝
+            # Avoid unnecessary memory copies
             return tensor.contiguous()
         return tensor
 ```
 
-### AMD GPU支持版本
+### AMD GPU Support Version
 
 ```python
 class AMDGPUAccelerator(GPUAccelerator):
-    """AMD GPU支持的加速器"""
+    """AMD GPU supported accelerator"""
     
     def _setup_device(self):
-        """AMD GPU设备设置"""
+        """AMD GPU device setup"""
         if self._check_amd_gpu_support():
-            self.device = torch.device('cuda')  # ROCm使用cuda接口
+            self.device = torch.device('cuda')  # ROCm uses cuda interface
             self.gpu_available = True
             self.platform = "AMD ROCm"
             
@@ -137,9 +137,9 @@ class AMDGPUAccelerator(GPUAccelerator):
             super()._setup_device()
     
     def _check_amd_gpu_support(self):
-        """检查AMD GPU支持"""
+        """Check AMD GPU support"""
         try:
-            # 检查ROCm
+            # Check ROCm
             import torch
             if torch.cuda.is_available():
                 gpu_name = torch.cuda.get_device_name(0)
@@ -147,7 +147,7 @@ class AMDGPUAccelerator(GPUAccelerator):
         except:
             pass
         
-        # 检查DirectML (Windows)
+        # Check DirectML (Windows)
         try:
             import torch_directml
             return torch_directml.is_available()
@@ -157,14 +157,14 @@ class AMDGPUAccelerator(GPUAccelerator):
         return False
 ```
 
-## 🔧 自动平台检测实现
+## 🔧 Automatic Platform Detection Implementation
 
 ```python
 class UniversalGPUAccelerator(GPUAccelerator):
-    """通用GPU加速器，自动检测平台"""
+    """Universal GPU accelerator with automatic platform detection"""
     
     def _setup_device(self):
-        """智能设备检测和设置"""
+        """Smart device detection and setup"""
         self.platform = self._detect_platform()
         
         if self.platform == "Apple Silicon":
@@ -179,12 +179,12 @@ class UniversalGPUAccelerator(GPUAccelerator):
             self._setup_cpu_fallback()
     
     def _detect_platform(self):
-        """检测GPU平台"""
-        # Apple Silicon检测
+        """Detect GPU platform"""
+        # Apple Silicon detection
         if torch.backends.mps.is_available():
             return "Apple Silicon"
         
-        # NVIDIA CUDA检测
+        # NVIDIA CUDA detection
         if torch.cuda.is_available():
             gpu_name = torch.cuda.get_device_name(0)
             if 'AMD' in gpu_name or 'Radeon' in gpu_name:
@@ -192,7 +192,7 @@ class UniversalGPUAccelerator(GPUAccelerator):
             else:
                 return "NVIDIA CUDA"
         
-        # AMD DirectML检测 (Windows)
+        # AMD DirectML detection (Windows)
         try:
             import torch_directml
             if torch_directml.is_available():
@@ -203,69 +203,69 @@ class UniversalGPUAccelerator(GPUAccelerator):
         return "CPU"
 ```
 
-## 📦 平台特定安装指南
+## 📦 Platform-Specific Installation Guide
 
 ### 🍎 Apple Silicon (macOS)
 ```bash
-# 标准安装 (推荐)
+# Standard installation (recommended)
 pip install torch torchvision torchaudio
 
-# 验证Apple GPU
+# Verify Apple GPU
 python -c "import torch; print(torch.backends.mps.is_available())"
 ```
 
 ### 🔴 AMD GPU (Linux)
 ```bash
-# ROCm安装
+# ROCm installation
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.6
 
-# 验证AMD GPU
+# Verify AMD GPU
 python -c "import torch; print(torch.cuda.is_available())"
 ```
 
 ### 🔴 AMD GPU (Windows)
 ```bash
-# DirectML安装
+# DirectML installation
 pip install torch-directml
 
-# 验证DirectML
+# Verify DirectML
 python -c "import torch_directml; print(torch_directml.is_available())"
 ```
 
-### 🟢 NVIDIA GPU (通用)
+### 🟢 NVIDIA GPU (Universal)
 ```bash
-# CUDA安装
+# CUDA installation
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-# 验证NVIDIA GPU
+# Verify NVIDIA GPU
 python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-## 🎯 推荐配置
+## 🎯 Recommended Configurations
 
-### 最佳性能平台排序
-1. **🥇 Apple Silicon (M1/M2/M3)** - 最佳集成体验
-2. **🥈 NVIDIA GPU + CUDA** - 最高原始性能
-3. **🥉 AMD GPU + ROCm (Linux)** - 良好的开源支持
-4. **4️⃣ AMD GPU + DirectML (Windows)** - 基础支持
+### Best Performance Platform Ranking
+1. **🥇 Apple Silicon (M1/M2/M3)** - Best integrated experience
+2. **🥈 NVIDIA GPU + CUDA** - Highest raw performance
+3. **🥉 AMD GPU + ROCm (Linux)** - Good open-source support
+4. **4️⃣ AMD GPU + DirectML (Windows)** - Basic support
 
-### 平台选择建议
+### Platform Selection Recommendations
 
-| 使用场景 | 推荐平台 | 原因 |
-|----------|----------|------|
-| 开发测试 | Apple Silicon | 易用性最佳 |
-| 生产部署 | NVIDIA GPU | 性能最高 |
-| 预算有限 | AMD GPU (Linux) | 性价比高 |
-| Windows环境 | NVIDIA GPU | 兼容性最好 |
+| Use Case | Recommended Platform | Reason |
+|----------|---------------------|---------|
+| Development & Testing | Apple Silicon | Best usability |
+| Production Deployment | NVIDIA GPU | Highest performance |
+| Budget Constrained | AMD GPU (Linux) | High cost-performance ratio |
+| Windows Environment | NVIDIA GPU | Best compatibility |
 
-## 🔄 更新GPU加速器以支持多平台
+## 🔄 Update GPU Accelerator for Multi-Platform Support
 
-我将为您更新现有的GPU加速器，使其支持Apple Silicon和AMD GPU：
+I will update the existing GPU accelerator to support Apple Silicon and AMD GPUs:
 
 ```python
-# 在gpu_accelerator.py中添加平台检测
+# Add platform detection in gpu_accelerator.py
 def _setup_device(self):
-    """增强的设备设置，支持多平台"""
+    """Enhanced device setup supporting multiple platforms"""
     self.platform = self._detect_gpu_platform()
     
     if self.platform == "Apple Silicon" and self.config.use_gpu:
@@ -290,9 +290,9 @@ def _setup_device(self):
         logger.info("Using CPU for computations")
 ```
 
-## 🎉 总结
+## 🎉 Summary
 
-**✅ Apple ARM芯片**: 完全支持，性能优秀，推荐使用
-**⚠️ AMD显卡**: 支持但需要额外配置，Linux环境下效果最佳
+**✅ Apple ARM Chips**: Fully supported, excellent performance, recommended for use
+**⚠️ AMD Graphics Cards**: Supported but requires additional configuration, best results in Linux environment
 
-我们的GPU加速实现已经为多平台做好了准备，只需要根据您的硬件平台安装相应的依赖即可享受GPU加速带来的性能提升！
+Our GPU acceleration implementation is ready for multiple platforms. You just need to install the appropriate dependencies for your hardware platform to enjoy the performance improvements from GPU acceleration!

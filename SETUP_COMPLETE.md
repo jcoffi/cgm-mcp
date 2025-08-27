@@ -1,49 +1,49 @@
-# 🎉 CGM MCP 设置完成
+# 🎉 CGM MCP Setup Complete
 
-## ✅ 安装状态
+## ✅ Installation Status
 
-### 环境设置
-- ✅ Python 虚拟环境已创建
-- ✅ 依赖包已安装
-- ✅ 基础测试通过
-- ✅ 模型无关服务测试通过
+### Environment Setup
+- ✅ Python virtual environment created
+- ✅ Dependencies installed
+- ✅ Basic tests passed
+- ✅ Model-agnostic service tests passed
 
-### 核心功能
-- ✅ 代码分析引擎正常工作
-- ✅ MCP 服务器框架就绪
-- ✅ 模型无关版本可用
-- ✅ 本地模型支持已配置
+### Core Features
+- ✅ Code analysis engine working normally
+- ✅ MCP server framework ready
+- ✅ Model-agnostic version available
+- ✅ Local model support configured
 
-## 🚀 快速启动
+## 🚀 Quick Start
 
-### 1. 启动模型无关服务（推荐）
+### 1. Start Model-agnostic Service (Recommended)
 ```bash
-# 无需 API 密钥，可与任何 AI 模型集成
+# No API keys required, can integrate with any AI model
 python main_modelless.py
 
-# 或使用启动脚本
+# Or use startup script
 ./scripts/start_modelless.sh
 ```
 
-### 2. 启动本地模型服务
+### 2. Start Local Model Service
 ```bash
-# 首先安装 Ollama 并下载模型
+# First install Ollama and download model
 ollama pull deepseek-coder:6.7b
 
-# 启动服务
+# Start service
 ./scripts/start_local.sh --provider ollama --model deepseek-coder:6.7b
 ```
 
-### 3. 启动完整 CGM 服务
+### 3. Start Full CGM Service
 ```bash
-# 需要 API 密钥
+# Requires API key
 export CGM_LLM_API_KEY=your-api-key
 python main.py
 ```
 
-## 🔧 集成配置
+## 🔧 Integration Configuration
 
-### Augment 集成
+### Augment Integration
 ```json
 {
   "mcpServers": {
@@ -55,7 +55,7 @@ python main.py
 }
 ```
 
-### Cursor 集成
+### Cursor Integration
 ```json
 {
   "mcp.servers": {
@@ -68,7 +68,7 @@ python main.py
 }
 ```
 
-### Claude Desktop 集成
+### Claude Desktop Integration
 ```json
 {
   "mcpServers": {
@@ -80,20 +80,20 @@ python main.py
 }
 ```
 
-## 🛠️ 可用工具
+## 🛠️ Available Tools
 
-### 模型无关工具
-- `cgm_analyze_repository` - 仓库结构分析
-- `cgm_get_file_content` - 文件详细分析
-- `cgm_find_related_code` - 代码关系发现
-- `cgm_extract_context` - 上下文提取
+### Model-agnostic Tools
+- `cgm_analyze_repository` - Repository structure analysis
+- `cgm_get_file_content` - Detailed file analysis
+- `cgm_find_related_code` - Code relationship discovery
+- `cgm_extract_context` - Context extraction
 
-### 完整 CGM 工具
-- `cgm_process_issue` - 完整问题处理流水线
-- `cgm_get_task_status` - 任务状态查询
-- `cgm_health_check` - 健康检查
+### Full CGM Tools
+- `cgm_process_issue` - Complete issue processing pipeline
+- `cgm_get_task_status` - Task status query
+- `cgm_health_check` - Health check
 
-## 📊 测试结果
+## 📊 Test Results
 
 ```
 🚀 CGM MCP Quick Test
@@ -108,83 +108,83 @@ python main.py
 🎉 CGM MCP is working correctly!
 ```
 
-## 📚 使用示例
+## 📚 Usage Examples
 
-### 基础使用
+### Basic Usage
 ```bash
-# 运行快速测试
+# Run quick test
 python quick_test.py
 
-# 运行完整示例（非交互式）
+# Run full example (non-interactive)
 python examples/modelless_example.py --non-interactive
 
-# 运行交互式示例
+# Run interactive example
 python examples/modelless_example.py --interactive
 ```
 
-### 在 AI 工具中使用
+### Using in AI Tools
 ```
-用户: "分析这个项目的认证系统"
+User: "Analyze the authentication system in this project"
 ↓
-AI 调用: cgm_analyze_repository({
+AI calls: cgm_analyze_repository({
   "repository_path": "/workspace",
   "query": "authentication system"
 })
 ↓
-CGM 返回: 结构化的代码分析结果
+CGM returns: Structured code analysis results
 ↓
-AI 基于分析结果生成回答
+AI generates response based on analysis results
 ```
 
-## 🎯 核心优势
+## 🎯 Core Advantages
 
-### 模型无关版本 ⭐
-- ✅ **零依赖** - 无需 API 密钥
-- ✅ **通用集成** - 可与任何 AI 模型配合
-- ✅ **高性能** - 缓存分析结果
-- ✅ **多格式输出** - JSON/Markdown/Prompt
+### Model-agnostic Version ⭐
+- ✅ **Zero Dependencies** - No API keys required
+- ✅ **Universal Integration** - Works with any AI model
+- ✅ **High Performance** - Cached analysis results
+- ✅ **Multi-format Output** - JSON/Markdown/Prompt
 
-### 完整版本
-- ✅ **端到端处理** - 从问题到代码补丁
-- ✅ **多模型支持** - OpenAI/Anthropic/Ollama/LM Studio
-- ✅ **四阶段流水线** - Rewriter→Retriever→Reranker→Reader
+### Full Version
+- ✅ **End-to-end Processing** - From issues to code patches
+- ✅ **Multi-model Support** - OpenAI/Anthropic/Ollama/LM Studio
+- ✅ **Four-stage Pipeline** - Rewriter→Retriever→Reranker→Reader
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 cgm-mcp/
-├── main.py                    # 完整版服务入口
-├── main_modelless.py          # 模型无关服务入口 ⭐
+├── main.py                    # Full version service entry
+├── main_modelless.py          # Model-agnostic service entry ⭐
 ├── src/cgm_mcp/
-│   ├── core/analyzer.py       # 核心分析引擎
-│   ├── server.py              # 完整版服务器
-│   ├── server_modelless.py    # 模型无关服务器
-│   ├── components/            # CGM 四大组件
-│   ├── utils/                 # 工具类
-│   └── models.py              # 数据模型
+│   ├── core/analyzer.py       # Core analysis engine
+│   ├── server.py              # Full version server
+│   ├── server_modelless.py    # Model-agnostic server
+│   ├── components/            # CGM four components
+│   ├── utils/                 # Utility classes
+│   └── models.py              # Data models
 ├── scripts/
-│   ├── setup.sh               # 环境设置
-│   ├── start_local.sh         # 本地模型启动
-│   └── start_modelless.sh     # 模型无关启动
-├── examples/                  # 使用示例
-├── tests/                     # 测试代码
-└── docs/                      # 文档
+│   ├── setup.sh               # Environment setup
+│   ├── start_local.sh         # Local model startup
+│   └── start_modelless.sh     # Model-agnostic startup
+├── examples/                  # Usage examples
+├── tests/                     # Test code
+└── docs/                      # Documentation
 ```
 
-## 🔮 下一步
+## 🔮 Next Steps
 
-1. **立即可用**: 模型无关版本已就绪，可直接集成到任何 AI 工具中
-2. **本地模型**: 安装 Ollama 后可使用本地模型版本
-3. **云端模型**: 配置 API 密钥后可使用完整版本
-4. **自定义扩展**: 根据需要添加新的分析功能
+1. **Ready to Use**: Model-agnostic version is ready, can be directly integrated into any AI tool
+2. **Local Models**: Install Ollama to use local model version
+3. **Cloud Models**: Configure API keys to use full version
+4. **Custom Extensions**: Add new analysis features as needed
 
-## 📞 支持
+## 📞 Support
 
-- 📁 项目路径: `/Volumes/data/git/python/cgm-mcp`
-- 📖 文档: `docs/` 目录
-- 🧪 测试: `python quick_test.py`
-- 🚀 启动: `python main_modelless.py`
+- 📁 Project Path: `/Volumes/data/git/python/cgm-mcp`
+- 📖 Documentation: `docs/` directory
+- 🧪 Testing: `python quick_test.py`
+- 🚀 Startup: `python main_modelless.py`
 
 ---
 
-**CGM MCP 已完全就绪！** 🎉
+**CGM MCP is fully ready!** 🎉

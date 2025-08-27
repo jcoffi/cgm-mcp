@@ -1,98 +1,98 @@
-# 🌍 CGM MCP 多语言支持
+# 🌍 CGM MCP Multi-Language Support
 
-CGM MCP 现在支持 **28 种编程语言**，共 **55 种文件扩展名**！
+CGM MCP now supports **28 programming languages** with **55 file extensions**!
 
-## ✅ 支持的编程语言
+## ✅ Supported Programming Languages
 
-### 🔥 完全支持（专门分析器）
+### 🔥 Full Support (Dedicated Analyzers)
 
 #### **PHP** 🐘
-- **扩展名**: `.php`, `.php3`, `.php4`, `.php5`, `.phtml`
-- **支持特性**:
-  - ✅ 类 (Classes) - 包括继承和接口实现
-  - ✅ 接口 (Interfaces) - 包括继承关系
-  - ✅ 特征 (Traits)
-  - ✅ 函数 (Functions) - 全局函数
-  - ✅ 方法 (Methods) - 类方法，包括可见性
-  - ✅ 可见性检测 (public/private/protected)
+- **Extensions**: `.php`, `.php3`, `.php4`, `.php5`, `.phtml`
+- **Supported Features**:
+  - ✅ Classes - including inheritance and interface implementation
+  - ✅ Interfaces - including inheritance relationships
+  - ✅ Traits
+  - ✅ Functions - global functions
+  - ✅ Methods - class methods, including visibility
+  - ✅ Visibility detection (public/private/protected)
 
 #### **JavaScript/TypeScript** 🟨
-- **扩展名**: `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`
-- **支持特性**:
-  - ✅ ES6 类 (Classes)
-  - ✅ 函数声明和表达式
-  - ✅ 箭头函数
-  - ✅ 异步函数
-  - ✅ TypeScript 接口 (仅 .ts/.tsx)
-  - ✅ 对象方法
+- **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`
+- **Supported Features**:
+  - ✅ ES6 Classes
+  - ✅ Function declarations and expressions
+  - ✅ Arrow functions
+  - ✅ Async functions
+  - ✅ TypeScript interfaces (TypeScript files only)
+  - ✅ Object methods
 
 #### **Go** 🐹
-- **扩展名**: `.go`
-- **支持特性**:
-  - ✅ 结构体 (Structs)
-  - ✅ 接口 (Interfaces)
-  - ✅ 函数 (Functions)
-  - ✅ 方法 (Methods)
-  - ✅ 包声明
+- **Extensions**: `.go`
+- **Supported Features**:
+  - ✅ Structs
+  - ✅ Interfaces
+  - ✅ Functions
+  - ✅ Methods
+  - ✅ Package declarations
 
 #### **Rust** 🦀
-- **扩展名**: `.rs`
-- **支持特性**:
-  - ✅ 结构体 (Structs)
-  - ✅ 枚举 (Enums)
-  - ✅ 特征 (Traits)
-  - ✅ 函数 (Functions)
-  - ✅ 实现块 (Impl blocks)
-  - ✅ 可见性 (pub)
+- **Extensions**: `.rs`
+- **Supported Features**:
+  - ✅ Structs
+  - ✅ Enums
+  - ✅ Traits
+  - ✅ Functions
+  - ✅ Implementation blocks (Impl blocks)
+  - ✅ Visibility (pub)
 
 #### **Ruby** 💎
-- **扩展名**: `.rb`, `.rbw`
-- **支持特性**:
-  - ✅ 类 (Classes) - 包括继承
-  - ✅ 模块 (Modules)
-  - ✅ 方法 (Methods)
-  - ✅ 实例变量
+- **Extensions**: `.rb`, `.rbw`
+- **Supported Features**:
+  - ✅ Classes - including inheritance
+  - ✅ Modules
+  - ✅ Methods
+  - ✅ Instance variables
 
 #### **C#** 🔷
-- **扩展名**: `.cs`
-- **支持特性**:
-  - ✅ 类 (Classes) - 包括继承和接口
-  - ✅ 接口 (Interfaces)
-  - ✅ 方法 (Methods)
-  - ✅ 属性 (Properties)
-  - ✅ 命名空间 (Namespaces)
-  - ✅ 可见性修饰符
+- **Extensions**: `.cs`
+- **Supported Features**:
+  - ✅ Classes - including inheritance and interfaces
+  - ✅ Interfaces
+  - ✅ Methods
+  - ✅ Properties
+  - ✅ Namespaces
+  - ✅ Visibility modifiers
 
 #### **Java/Kotlin/Scala** ☕
-- **扩展名**: `.java`, `.kt`, `.scala`
-- **支持特性**:
-  - ✅ 类 (Classes)
-  - ✅ 接口 (Interfaces)
-  - ✅ 枚举 (Enums)
-  - ✅ 方法 (Methods)
-  - ✅ 包声明
+- **Extensions**: `.java`, `.kt`, `.scala`
+- **Supported Features**:
+  - ✅ Classes
+  - ✅ Interfaces
+  - ✅ Enums
+  - ✅ Methods
+  - ✅ Package declarations
 
 #### **C/C++** ⚡
-- **扩展名**: `.c`, `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp`, `.hxx`
-- **支持特性**:
-  - ✅ 函数 (Functions)
-  - ✅ 结构体 (Structs)
-  - ✅ 类 (Classes) - C++ 专用
-  - ✅ 命名空间 (Namespaces) - C++ 专用
+- **Extensions**: `.c`, `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp`, `.hxx`
+- **Supported Features**:
+  - ✅ Functions
+  - ✅ Structs
+  - ✅ Classes (C++ only)
+  - ✅ Namespaces (C++ only)
 
 #### **Python** 🐍
-- **扩展名**: `.py`, `.pyx`, `.pyi`
-- **支持特性**:
-  - ✅ 类 (Classes) - AST 解析
-  - ✅ 函数 (Functions) - AST 解析
-  - ✅ 方法 (Methods) - AST 解析
-  - ✅ 导入语句 - AST 解析
-  - ✅ 文档字符串
-  - ✅ 装饰器
+- **Extensions**: `.py`, `.pyx`, `.pyi`
+- **Supported Features**:
+  - ✅ Classes - AST parsing
+  - ✅ Functions - AST parsing
+  - ✅ Methods - AST parsing
+  - ✅ Import statements - AST parsing
+  - ✅ Docstrings
+  - ✅ Decorators
 
-### 🔧 基础支持（通用分析器）
+### 🔧 Basic Support (Generic Analyzer)
 
-以下语言通过通用模式匹配支持基本的函数和类识别：
+The following languages are supported through generic pattern matching for basic function and class recognition:
 
 - **Swift** (`.swift`)
 - **Objective-C** (`.m`, `.mm`)
@@ -110,7 +110,7 @@ CGM MCP 现在支持 **28 种编程语言**，共 **55 种文件扩展名**！
 - **Visual Basic** (`.vb`)
 - **PowerShell** (`.ps1`, `.psm1`)
 
-## 📊 测试结果
+## 📊 Test Results
 
 ```
 🔍 Testing PHP analysis...
@@ -163,9 +163,9 @@ CGM MCP 现在支持 **28 种编程语言**，共 **55 种文件扩展名**！
    ✅ CS analysis completed
 ```
 
-## 🚀 使用示例
+## 🚀 Usage Examples
 
-### 分析 PHP 项目
+### Analyzing PHP Projects
 ```python
 from cgm_mcp.models import CodeAnalysisRequest
 
@@ -178,7 +178,7 @@ request = CodeAnalysisRequest(
 response = await analyzer.analyze_repository(request)
 ```
 
-### 通过 MCP 工具调用
+### Using MCP Tool Calls
 ```json
 {
   "tool": "cgm_analyze_repository",
@@ -190,31 +190,31 @@ response = await analyzer.analyze_repository(request)
 }
 ```
 
-## 🔧 扩展新语言
+## 🔧 Adding New Language Support
 
-要添加对新语言的支持，只需：
+To add support for a new language:
 
-1. **添加文件扩展名**:
+1. **Add file extension**:
 ```python
 self.supported_extensions.add(".new_ext")
 ```
 
-2. **添加语言检测**:
+2. **Add language detection**:
 ```python
 ".new_ext": "new_language"
 ```
 
-3. **创建专门分析器**（可选）:
+3. **Create dedicated analyzer** (optional):
 ```python
 def _analyze_new_language_file(self, content: str, file_path: str) -> List[CodeEntity]:
-    # 实现语言特定的分析逻辑
+    # Implement language-specific analysis logic
     pass
 ```
 
-## 🎯 语言特性支持矩阵
+## 🎯 Language Feature Support Matrix
 
-| 语言 | 类/结构体 | 接口 | 函数/方法 | 继承 | 可见性 | 特殊特性 |
-|------|-----------|------|-----------|------|--------|----------|
+| Language | Classes/Structs | Interfaces | Functions/Methods | Inheritance | Visibility | Special Features |
+|----------|-----------------|------------|-------------------|-------------|------------|------------------|
 | PHP | ✅ | ✅ | ✅ | ✅ | ✅ | Traits |
 | JavaScript | ✅ | ✅* | ✅ | ✅ | ❌ | Arrow Functions |
 | TypeScript | ✅ | ✅ | ✅ | ✅ | ✅ | Type Annotations |
@@ -226,16 +226,16 @@ def _analyze_new_language_file(self, content: str, file_path: str) -> List[CodeE
 | C/C++ | ✅ | ❌ | ✅ | ✅ | ✅ | Namespaces |
 | Python | ✅ | ❌ | ✅ | ✅ | ❌ | Decorators |
 
-*仅 TypeScript
+*TypeScript only
 
-## 🔮 未来计划
+## 🔮 Future Plans
 
-- [ ] 添加更多语言的专门分析器
-- [ ] 支持语言特定的依赖关系分析
-- [ ] 增强跨语言项目支持
-- [ ] 添加语法高亮和代码格式化
-- [ ] 支持更复杂的代码结构分析
+- [ ] Add more dedicated analyzers for additional languages
+- [ ] Support language-specific dependency analysis
+- [ ] Enhance cross-language project support
+- [ ] Add syntax highlighting and code formatting
+- [ ] Support more complex code structure analysis
 
 ---
 
-**CGM MCP 现在是真正的多语言代码分析工具！** 🌍✨
+**CGM MCP is now a truly multi-language code analysis tool!** 🌍✨
