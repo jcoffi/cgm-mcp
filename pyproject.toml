@@ -59,8 +59,8 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/codefuse-ai/CodeFuse-CGM"
-Repository = "https://github.com/yangweijie/cgm-mcp"
-Documentation = "https://github.com/yangweijie/cgm-mcp/blob/main/README.md"
+Repository = "https://github.com/jcoffi/cgm-mcp"
+Documentation = "https://github.com/jcoffi/cgm-mcp/blob/main/README.md"
 
 [project.scripts]
 cgm-mcp = "cgm_mcp.server:cli"
