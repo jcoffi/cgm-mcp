@@ -38,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/cgm-mcp
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=${{ matrix.flavor }}
             type=raw,value=latest,enable=${{ matrix.flavor == 'full' }}

@@ -27,5 +27,7 @@ COPY src ./src
 RUN pip install --upgrade pip setuptools wheel \
  && pip install .
 
-# Default to showing help; users can override with e.g. `cgm-mcp` or `cgm-mcp-modelless`
-CMD ["/bin/sh", "-lc", "if [ \"$FLAVOR\" = \"full\" ]; then exec cgm-mcp --help; else exec cgm-mcp-modelless --help; fi"]
+# Provide a simple, predictable entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["--help"]
