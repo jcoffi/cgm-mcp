@@ -41,8 +41,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
+      - name: Extract Docker metadata (GHCR only)
+        if: ${{ !secrets.DOCKERHUB_USERNAME || !secrets.DOCKERHUB_TOKEN }}
+        id: meta_ghcr
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ matrix.flavor }}
+            type=raw,value=latest,enable=${{ matrix.flavor == 'full' }}
+            type=sha,format=short,prefix=${{ matrix.flavor }}-
+
+      - name: Extract Docker metadata (GHCR + Docker Hub)
+        if: ${{ secrets.DOCKERHUB_USERNAME && secrets.DOCKERHUB_TOKEN }}
+        id: meta_both
         uses: docker/metadata-action@v5
         with:
           images: |
@@ -61,5 +74,5 @@ jobs:
           platforms: linux/amd64
           build-args: |
             FLAVOR=${{ matrix.flavor }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_both.outputs.tags || steps.meta_ghcr.outputs.tags }}
+          labels: ${{ steps.meta_both.outputs.labels || steps.meta_ghcr.outputs.labels }}
