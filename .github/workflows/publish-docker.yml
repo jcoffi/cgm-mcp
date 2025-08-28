@@ -52,7 +52,7 @@ jobs:
             type=sha,format=short,prefix=${{ matrix.flavor }}-
 
       - name: Extract Docker metadata (GHCR + Docker Hub)
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        if: secrets.DOCKERHUB_USERNAME && secrets.DOCKERHUB_TOKEN
         id: meta_both
         uses: docker/metadata-action@v5
         with:
