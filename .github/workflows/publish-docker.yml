@@ -54,6 +54,7 @@ jobs:
             type=raw,value=${{ matrix.flavor }}
             type=raw,value=latest,enable=${{ matrix.flavor == 'full' }}
             type=sha,format=short,prefix=${{ matrix.flavor }}-
+
       - name: Extract Docker metadata (GHCR + Docker Hub)
         if: ${{ env.DOCKERHUB_USERNAME && env.DOCKERHUB_TOKEN }}
         id: meta_both
@@ -66,6 +67,7 @@ jobs:
             type=raw,value=${{ matrix.flavor }}
             type=raw,value=latest,enable=${{ matrix.flavor == 'full' }}
             type=sha,format=short,prefix=${{ matrix.flavor }}-
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
