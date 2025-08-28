@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+tests/
+examples/
+docs/
+CGM2505.16901v4.pdf
