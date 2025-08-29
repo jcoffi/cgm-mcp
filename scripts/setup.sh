@@ -52,44 +52,19 @@ check_python() {
     fi
 }
 
-# Create virtual environment
+# Environment setup (uvx-based)
 create_venv() {
-    print_status "Creating virtual environment..."
-    
-    if [ ! -d "venv" ]; then
-        python3 -m venv venv
-        print_success "Virtual environment created"
-    else
-        print_warning "Virtual environment already exists"
-    fi
+    print_status "No local virtual environment will be created; using uv-based execution"
 }
 
-# Activate virtual environment
+# Activate environment (uvx-based)
 activate_venv() {
-    print_status "Activating virtual environment..."
-    source venv/bin/activate
-    print_success "Virtual environment activated"
+    print_status "No environment activation required; tools run via uv/uvx"
 }
 
-# Install dependencies
+# Install dependencies (uv-based; no persistent install)
 install_dependencies() {
-    print_status "Installing dependencies..."
-    
-    # Upgrade pip
-    pip install --upgrade pip
-    
-    # Install requirements
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
-        print_success "Dependencies installed"
-    else
-        print_error "requirements.txt not found"
-        exit 1
-    fi
-    
-    # Install development dependencies
-    pip install pytest pytest-asyncio pytest-cov black isort mypy
-    print_success "Development dependencies installed"
+    print_status "Skipping persistent dependency installation; use uv/uvx to run commands with resolved deps as needed"
 }
 
 # Setup environment file
@@ -112,50 +87,40 @@ setup_env() {
 
 # Run tests
 run_tests() {
-    print_status "Running tests..."
-    
-    if command -v pytest &> /dev/null; then
-        pytest tests/ -v
+    print_status "Running tests via uvx..."
+    if command -v uvx >/dev/null 2>&1; then
+        uvx -q --from pytest pytest tests/ -v || {
+            print_error "Tests failed"
+            exit 1
+        }
         print_success "Tests completed"
     else
-        print_error "pytest not found"
-        exit 1
+        print_warning "uvx not found; skipping tests"
     fi
 }
 
 # Format code
 format_code() {
-    print_status "Formatting code..."
-    
-    # Format with black
-    if command -v black &> /dev/null; then
-        black src/ tests/ examples/ --line-length 88
-        print_success "Code formatted with black"
+    print_status "Formatting code via uvx..."
+    if command -v uvx >/dev/null 2>&1; then
+        uvx -q --from black black src/ tests/ examples/ --line-length 88 || print_warning "black issues"
+        uvx -q --from isort isort src/ tests/ examples/ --profile black || print_warning "isort issues"
+        print_success "Formatting completed"
     else
-        print_warning "black not found, skipping formatting"
-    fi
-    
-    # Sort imports with isort
-    if command -v isort &> /dev/null; then
-        isort src/ tests/ examples/ --profile black
-        print_success "Imports sorted with isort"
-    else
-        print_warning "isort not found, skipping import sorting"
+        print_warning "uvx not found; skipping formatting"
     fi
 }
 
 # Type checking
 type_check() {
-    print_status "Running type checks..."
-
-    if command -v mypy &> /dev/null; then
-        # Only check our code, exclude external libraries
-        mypy src/cgm_mcp --ignore-missing-imports --exclude venv/ || {
+    print_status "Running type checks via uvx..."
+    if command -v uvx >/dev/null 2>&1; then
+        uvx -q --from mypy mypy src/cgm_mcp --ignore-missing-imports || {
             print_warning "Type checking found some issues, but continuing..."
         }
         print_success "Type checking completed"
     else
-        print_warning "mypy not found, skipping type checking"
+        print_warning "uvx not found; skipping type checking"
     fi
 }
 
@@ -179,17 +144,17 @@ show_usage() {
     echo "1. Edit .env file with your API keys:"
     echo "   nano .env"
     echo ""
-    echo "2. Activate virtual environment:"
-    echo "   source venv/bin/activate"
+    echo "2. Start the server (modelless):"
+    echo "   uvx -q --from . cgm-mcp-modelless"
     echo ""
-    echo "3. Start the server:"
-    echo "   python main.py"
+    echo "3. Start the server (with LLM provider):"
+    echo "   uvx -q --from . cgm-mcp"
     echo ""
     echo "4. Run tests:"
-    echo "   pytest tests/"
+    echo "   uvx -q --from pytest pytest tests/"
     echo ""
     echo "5. Run examples:"
-    echo "   python examples/example_usage.py"
+    echo "   uv run python examples/example_usage.py"
     echo ""
     echo "For more information, see README.md"
 }

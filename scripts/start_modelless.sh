@@ -91,14 +91,7 @@ done
 
 print_status "Starting CGM MCP Server (Model-agnostic)..."
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    print_error "Virtual environment not found. Please run setup.sh first."
-    exit 1
-fi
-
-# Activate virtual environment
-source venv/bin/activate
+# Using the current Python environment. No venv activation here.
 
 # Build command arguments
 CMD_ARGS=()
@@ -116,7 +109,6 @@ if [ -n "$LOG_LEVEL" ]; then
 fi
 
 if [ -n "$CACHE_DIR" ]; then
-    # Create cache directory if it doesn't exist
     mkdir -p "$CACHE_DIR"
     CMD_ARGS+=(--cache-dir "$CACHE_DIR")
 fi
@@ -151,8 +143,8 @@ print_status "  • cgm_get_file_content - Detailed file analysis"
 print_status "  • cgm_find_related_code - Code relationship discovery"
 print_status "  • cgm_extract_context - Context extraction for external models"
 
-# Start the server
+# Start the server in the current environment
 print_status "Starting server..."
 python main_modelless.py "${CMD_ARGS[@]}"
 
-print_success "CGM MCP Server (Model-agnostic) started successfully!"
+print_success "CGM MCP Server (Model-agnostic) started successfully!" 

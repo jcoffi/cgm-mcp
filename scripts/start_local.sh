@@ -78,14 +78,7 @@ done
 
 print_status "Starting CGM MCP Server with local models..."
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    print_error "Virtual environment not found. Please run setup.sh first."
-    exit 1
-fi
-
-# Activate virtual environment
-source venv/bin/activate
+# Using the current Python environment. No venv activation here.
 
 # Set configuration based on provider
 if [ -z "$CONFIG_FILE" ]; then
@@ -109,7 +102,7 @@ if [ -z "$CONFIG_FILE" ]; then
     esac
 fi
 
-# Check if config file exists
+# Require config file if specified or defaulted
 if [ ! -f "$CONFIG_FILE" ]; then
     print_error "Configuration file not found: $CONFIG_FILE"
     exit 1
@@ -154,7 +147,7 @@ print_status "Model: $MODEL"
 print_status "Config: $CONFIG_FILE"
 print_status "Port: $PORT"
 
-# Start the server
+# Start the server in the current environment
 print_status "Starting CGM MCP Server..."
 python main.py --config "$CONFIG_FILE" --log-level INFO
 
