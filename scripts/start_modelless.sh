@@ -147,4 +147,4 @@ print_status "  • cgm_extract_context - Context extraction for external models
 print_status "Starting server..."
 python main_modelless.py "${CMD_ARGS[@]}"
 
-print_success "CGM MCP Server (Model-agnostic) started successfully!" 
+print_success "CGM MCP Server (Model-agnostic) started successfully!"

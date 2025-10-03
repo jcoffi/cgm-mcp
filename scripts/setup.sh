@@ -103,9 +103,21 @@ run_tests() {
 format_code() {
     print_status "Formatting code via uvx..."
     if command -v uvx >/dev/null 2>&1; then
-        uvx -q --from black black src/ tests/ examples/ --line-length 88 || print_warning "black issues"
-        uvx -q --from isort isort src/ tests/ examples/ --profile black || print_warning "isort issues"
-        print_success "Formatting completed"
+        uvx -q --from black black src/ tests/ examples/ --line-length 88
+        BLACK_STATUS=$?
+        uvx -q --from isort isort src/ tests/ examples/ --profile black
+        ISORT_STATUS=$?
+        if [ $BLACK_STATUS -eq 0 ] && [ $ISORT_STATUS -eq 0 ]; then
+            print_success "Formatting completed"
+        else
+            if [ $BLACK_STATUS -ne 0 ] && [ $ISORT_STATUS -ne 0 ]; then
+                print_warning "Both black and isort encountered issues"
+            elif [ $BLACK_STATUS -ne 0 ]; then
+                print_warning "black encountered issues"
+            elif [ $ISORT_STATUS -ne 0 ]; then
+                print_warning "isort encountered issues"
+            fi
+        fi
     else
         print_warning "uvx not found; skipping formatting"
     fi
@@ -115,10 +127,11 @@ format_code() {
 type_check() {
     print_status "Running type checks via uvx..."
     if command -v uvx >/dev/null 2>&1; then
-        uvx -q --from mypy mypy src/cgm_mcp --ignore-missing-imports || {
+        if uvx -q --from mypy mypy src/cgm_mcp --ignore-missing-imports; then
+            print_success "Type checking completed successfully"
+        else
             print_warning "Type checking found some issues, but continuing..."
-        }
-        print_success "Type checking completed"
+        fi
     else
         print_warning "uvx not found; skipping type checking"
     fi
