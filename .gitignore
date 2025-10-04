@@ -172,6 +172,10 @@ data/
 *.log
 .DS_Store
 
+# Development and testing files (exclude from commits)
+test_*.py
+!tests/test_*.py  # Keep actual test files in tests/ directory
+
 # Temporary files
 *.tmp
 *.temp

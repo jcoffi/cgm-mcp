@@ -271,8 +271,13 @@ class EntityMatcher(GPUAccelerator):
         super().__init__(config)
         self.vocab_size = 256  # ASCII character set
         
-    def _text_to_tensor(self, texts: List[str]) -> torch.Tensor:
+    def _text_to_tensor(self, texts: List[str]):  # Return type depends on TORCH_AVAILABLE
         """Convert texts to tensor representation"""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch not available for tensor operations")
+            
+        import torch  # Import here to avoid module-level issues
+        
         if not texts:
             return torch.empty(0, self.vocab_size, device=self.device)
         

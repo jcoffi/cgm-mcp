@@ -32,8 +32,20 @@ from pydantic import ValidationError
 
 from .core.analyzer import CGMAnalyzer
 from .core.analyzer_optimized import OptimizedCGMAnalyzer
-from .core.gpu_enhanced_analyzer import GPUEnhancedAnalyzer
-from .core.gpu_accelerator import GPUAcceleratorConfig
+
+# Optional GPU imports for modelless server
+try:
+    # Only import GPU components if torch is available
+    import torch
+    from .core.gpu_enhanced_analyzer import GPUEnhancedAnalyzer
+    from .core.gpu_accelerator import GPUAcceleratorConfig
+    GPU_AVAILABLE = True
+    logger.info("GPU components available for modelless server")
+except ImportError as e:
+    logger.info(f"GPU components not available in modelless server (this is normal): {e}")
+    GPUEnhancedAnalyzer = None
+    GPUAcceleratorConfig = None
+    GPU_AVAILABLE = False
 from .models import (
     CodeAnalysisRequest,
     CodeAnalysisResponse,
@@ -54,19 +66,26 @@ class ModellessCGMServer:
         self.config = config
         self.server = Server("cgm-modelless")
 
-        # Initialize analyzer with GPU support if available
-        gpu_config = GPUAcceleratorConfig(
-            use_gpu=getattr(config, 'use_gpu', True),
-            batch_size=getattr(config, 'gpu_batch_size', 1024),
-            similarity_threshold=getattr(config, 'similarity_threshold', 0.1)
-        )
-
-        try:
-            self.analyzer = GPUEnhancedAnalyzer(gpu_config)
-            logger.info("GPU-enhanced analyzer initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize GPU analyzer, falling back to optimized: {e}")
+        # Initialize analyzer - prefer optimized for modelless server to avoid GPU dependencies
+        if GPU_AVAILABLE and getattr(config, 'use_gpu', False):
+            try:
+                # Setup GPU accelerator config only if available
+                gpu_config = GPUAcceleratorConfig(
+                    use_gpu=True,
+                    batch_size=getattr(config, 'gpu_batch_size', 1024),
+                    similarity_threshold=getattr(config, 'similarity_threshold', 0.1)
+                )
+                self.analyzer = GPUEnhancedAnalyzer(gpu_config)
+                logger.info("GPU-enhanced analyzer initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize GPU analyzer, falling back to optimized: {e}")
+                self.analyzer = OptimizedCGMAnalyzer()
+        else:
             self.analyzer = OptimizedCGMAnalyzer()
+            if not GPU_AVAILABLE:
+                logger.info("Using optimized analyzer (GPU components not available)")
+            else:
+                logger.info("Using optimized analyzer (GPU disabled in config)")
 
         # Enhanced caching system
         self.analysis_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
