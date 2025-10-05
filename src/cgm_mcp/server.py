@@ -380,7 +380,7 @@ def cli():
     if not any("cgm_mcp" in p for p in sys.path):
         sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    from utils.config import Config
+    from .utils.config import Config
     from loguru import logger
 
     def setup_logging(log_level: str = "INFO"):
