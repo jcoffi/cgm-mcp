@@ -857,7 +857,32 @@ class CGMServer:
 
         for file_analysis in analysis_result.file_analyses[:3]:  # Limit to 3 files
             lines.append(f"### File: {file_analysis.file_path}")
-            lines.append("```python")            # Show first 20 lines or so
+            # Determine language based on file extension
+            file_extension = file_analysis.file_path.split('.')[-1].lower() if '.' in file_analysis.file_path else ''
+            language_map = {
+                'py': 'python',
+                'js': 'javascript',
+                'ts': 'typescript',
+                'java': 'java',
+                'cpp': 'cpp',
+                'c': 'c',
+                'cs': 'csharp',
+                'php': 'php',
+                'rb': 'ruby',
+                'go': 'go',
+                'rs': 'rust',
+                'sh': 'bash',
+                'yml': 'yaml',
+                'yaml': 'yaml',
+                'json': 'json',
+                'xml': 'xml',
+                'html': 'html',
+                'css': 'css',
+                'sql': 'sql',
+                'md': 'markdown'
+            }
+            language = language_map.get(file_extension, '')  # Default to no language if unknown
+            lines.append(f"```{language}")
             content_lines = file_analysis.content.split('\n')[:20]
             lines.extend(content_lines)
             if len(file_analysis.content.split('\n')) > 20:
