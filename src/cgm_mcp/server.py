@@ -357,7 +357,7 @@ class CGMServer:
                     server_version="0.1.0",
                     capabilities=self.server.get_capabilities(
                         notification_options=NotificationOptions(),
-                        experimental_capabilities=None,
+                        experimental_capabilities={},
                     ),
                 ),
             )
