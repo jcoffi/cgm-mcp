@@ -65,6 +65,17 @@ A **Model Context Protocol (MCP)** server implementation of **CodeFuse-CGM** (Co
 - Python 3.8+
 - pip or conda
 
+### 🚀 Automatic GPU Setup
+
+**CGM MCP automatically detects and installs GPU dependencies** when you first run the server:
+
+- **NVIDIA GPUs**: Automatically installs CUDA toolkit, CuPy, and PyTorch with CUDA support
+- **AMD GPUs**: Configures ROCm or DirectML support
+- **Apple Silicon**: Enables Metal Performance Shaders (MPS)
+- **Graphviz**: Installs system Graphviz libraries required for pygraphviz
+
+The installation happens automatically on first launch - no manual intervention required!
+
 ### Install from Source
 
 ```bash
@@ -77,6 +88,18 @@ pip install -r requirements.txt
 
 # Or install in development mode
 pip install -e .
+```
+
+### Manual GPU Setup (Optional)
+
+If you prefer manual control, you can install GPU dependencies separately:
+
+```bash
+# For NVIDIA CUDA
+python src/cgm_mcp/install_cuda_stack.py
+
+# Or as a command after installation
+install-cuda-stack
 ```
 
 ### GPU Acceleration Setup (Optional)

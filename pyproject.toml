@@ -66,6 +66,7 @@ Documentation = "https://github.com/jcoffi/cgm-mcp/blob/main/README.md"
 [project.scripts]
 cgm-mcp = "cgm_mcp.server:cli"
 cgm-mcp-modelless = "cgm_mcp.server_modelless:cli"
+install-cuda-stack = "cgm_mcp.install_cuda_stack:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

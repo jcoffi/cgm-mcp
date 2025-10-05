@@ -370,6 +370,57 @@ async def main():
     await server.run()
 
 
+def check_gpu_dependencies():
+    """Check if GPU dependencies are installed and install if needed"""
+    import subprocess
+    import sys
+    import shutil
+
+    try:
+        # Check if nvidia-smi is available (indicates GPU)
+        result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+        if result.returncode != 0:
+            return  # No NVIDIA GPU detected, skip
+
+        # Check if required packages are installed
+        try:
+            import cupy
+            import torch
+            torch_cuda = torch.cuda.is_available()
+            cupy_cuda = False
+            try:
+                cupy_cuda = cupy.cuda.runtime.getDeviceCount() > 0
+            except Exception:
+                cupy_cuda = False
+            if torch_cuda and cupy_cuda:
+                return  # Dependencies already installed and both libraries can use CUDA
+        except ImportError:
+            pass
+
+        # Check if graphviz is installed (cross-platform)
+        if shutil.which('dot') is None:
+            print("Installing GPU dependencies and graphviz...")
+
+            # Try to run the installed CLI command first
+            try:
+                result = subprocess.run([sys.executable, '-m', 'cgm_mcp.install_cuda_stack'],
+                                      capture_output=True, text=True)
+            except FileNotFoundError:
+                # Fallback: try the direct command if available
+                try:
+                    result = subprocess.run(['install-cuda-stack'], capture_output=True, text=True)
+                except FileNotFoundError:
+                    print("Warning: install-cuda-stack command not found. Please run 'pip install -e .' to install the CLI command.")
+                    return
+
+            if result.returncode != 0:
+                print(f"Warning: Failed to install GPU dependencies: {result.stderr}")
+            else:
+                print("GPU dependencies installed successfully!")
+    except Exception as e:
+        print(f"Warning: Error checking GPU dependencies: {e}")
+
+
 def cli():
     """Synchronous CLI entry point for console_scripts"""
     import argparse
@@ -446,6 +497,9 @@ Environment Variables:
         return parser.parse_args()
 
     args = parse_args()
+
+    # Check and install GPU dependencies if needed
+    check_gpu_dependencies()
 
     # Load configuration
     try:
