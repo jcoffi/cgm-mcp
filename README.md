@@ -96,7 +96,7 @@ If you prefer manual control, you can install GPU dependencies separately:
 
 ```bash
 # For NVIDIA CUDA
-python scripts/install_cuda_stack.py
+python src/cgm_mcp/install_cuda_stack.py
 
 # Or as a command after installation
 install-cuda-stack
