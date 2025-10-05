@@ -374,7 +374,7 @@ def check_gpu_dependencies():
     """Check if GPU dependencies are installed and install if needed"""
     import subprocess
     import sys
-    from pathlib import Path
+    import shutil
 
     try:
         # Check if nvidia-smi is available (indicates GPU)
@@ -391,20 +391,28 @@ def check_gpu_dependencies():
         except ImportError:
             pass
 
-        # Check if graphviz is installed
-        result = subprocess.run(['which', 'dot'], capture_output=True)
-        if result.returncode != 0:
+        # Check if graphviz is installed (cross-platform)
+        if shutil.which('dot') is None:
             print("Installing GPU dependencies and graphviz...")
 
-            # Run the install script
-            script_path = Path(__file__).parent.parent.parent / "scripts" / "install_cuda_stack.py"
-            if script_path.exists():
-                result = subprocess.run([sys.executable, str(script_path)], check=True)
-                print("GPU dependencies installed successfully!")
+            # Try to run the installed CLI command first
+            try:
+                result = subprocess.run([sys.executable, '-m', 'cgm_mcp.install_cuda_stack'],
+                                      capture_output=True, text=True)
+            except FileNotFoundError:
+                # Fallback: try the direct command if available
+                try:
+                    result = subprocess.run(['install-cuda-stack'], capture_output=True, text=True)
+                except FileNotFoundError:
+                    print("Warning: install-cuda-stack command not found. Please run 'pip install -e .' to install the CLI command.")
+                    return
+
+            if result.returncode != 0:
+                print(f"Warning: Failed to install GPU dependencies: {result.stderr}")
             else:
-                print(f"Warning: CUDA install script not found at {script_path}")
+                print("GPU dependencies installed successfully!")
     except Exception as e:
-        print(f"Warning: Failed to check/install GPU dependencies: {e}")
+        print(f"Warning: Error checking GPU dependencies: {e}")
 
 
 def cli():

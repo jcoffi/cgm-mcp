@@ -22,6 +22,7 @@ Notes:
 
 import argparse
 import os
+import platform
 import re
 import shlex
 import subprocess
@@ -86,10 +87,39 @@ def choose_torch_index(cuda_major: int, cuda_minor: int) -> str:
 
 
 def install_system_packages(dry_run: bool) -> None:
-    """Install system packages using apt."""
-    print("Installing system packages...")
-    run(["apt", "update"], dry_run)
-    run(["apt", "install", "-y", "graphviz", "libgraphviz-dev"], dry_run)
+    """Install system packages using the appropriate package manager for the platform."""
+    system = platform.system().lower()
+
+    if system == "linux":
+        # Try to detect the package manager
+        if os.path.exists("/usr/bin/apt"):
+            # Debian/Ubuntu
+            print("Installing system packages using apt...")
+            run(["apt", "update"], dry_run)
+            run(["apt", "install", "-y", "graphviz", "libgraphviz-dev"], dry_run)
+        elif os.path.exists("/usr/bin/yum"):
+            # CentOS/RHEL
+            print("Installing system packages using yum...")
+            run(["yum", "install", "-y", "graphviz", "graphviz-devel"], dry_run)
+        elif os.path.exists("/usr/bin/dnf"):
+            # Fedora
+            print("Installing system packages using dnf...")
+            run(["dnf", "install", "-y", "graphviz", "graphviz-devel"], dry_run)
+        elif os.path.exists("/usr/bin/pacman"):
+            # Arch Linux
+            print("Installing system packages using pacman...")
+            run(["pacman", "-S", "--noconfirm", "graphviz"], dry_run)
+        else:
+            print("Warning: Could not detect package manager. Please install graphviz manually.")
+    elif system == "darwin":
+        # macOS
+        if os.path.exists("/usr/local/bin/brew") or os.path.exists("/opt/homebrew/bin/brew"):
+            print("Installing system packages using brew...")
+            run(["brew", "install", "graphviz"], dry_run)
+        else:
+            print("Warning: Homebrew not found. Please install graphviz manually.")
+    else:
+        print(f"Warning: Unsupported platform '{system}'. Please install graphviz manually.")
 
 
 def install_packages(cupy_pkg: str, torch_index: str, dry_run: bool) -> None:
@@ -132,7 +162,7 @@ def verify_install() -> None:
         print("PyTorch verification failed:", e)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def _main(argv: Optional[list[str]] = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--dry-run", action="store_true", help="Print actions without installing")
     args = p.parse_args(argv)
@@ -164,35 +194,6 @@ def main():
     """Entry point for the install_cuda_stack script"""
     import sys
     raise SystemExit(_main(sys.argv[1:]))
-
-
-def _main(argv=None):
-    """Internal main function"""
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--dry-run", action="store_true", help="Print actions without installing")
-    args = p.parse_args(argv)
-
-    try:
-        major, minor = get_cuda_version()
-    except RuntimeError as e:
-        print(f"Error: {e}")
-        return 1
-
-    print(f"Detected CUDA version: {major}.{minor}")
-
-    cupy_pkg = choose_cupy_package(major, minor)
-    torch_index = choose_torch_index(major, minor)
-
-    print(f"Selected CuPy package: {cupy_pkg}")
-    print(f"Selected PyTorch index: {torch_index}")
-
-    install_packages(cupy_pkg, torch_index, args.dry_run)
-
-    if not args.dry_run:
-        verify_install()
-
-    print("\nDone.")
-    return 0
 
 
 if __name__ == "__main__":
