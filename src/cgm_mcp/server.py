@@ -372,7 +372,114 @@ async def main():
 
 def cli():
     """Synchronous CLI entry point for console_scripts"""
-    asyncio.run(main())
+    import argparse
+    import sys
+    from pathlib import Path
+
+    # Add src to path if running as module
+    if not any("cgm_mcp" in p for p in sys.path):
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from utils.config import Config
+    from loguru import logger
+
+    def setup_logging(log_level: str = "INFO"):
+        """Setup logging configuration"""
+        logger.remove()  # Remove default handler
+        logger.add(
+            sys.stderr,
+            level=log_level,
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+        )
+
+    def parse_args():
+        """Parse command line arguments"""
+        parser = argparse.ArgumentParser(
+            description="CGM MCP Server - CodeFuse-CGM Model Context Protocol Server",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Examples:
+  cgm-mcp                           # Start with default config
+  cgm-mcp --config config.json     # Use custom config file
+  cgm-mcp --log-level DEBUG        # Enable debug logging
+
+Environment Variables:
+  CGM_LLM_PROVIDER     - LLM provider (openai, anthropic, mock)
+  CGM_LLM_API_KEY      - API key for LLM provider
+  CGM_LLM_MODEL        - Model name to use
+  CGM_LOG_LEVEL        - Log level (DEBUG, INFO, WARNING, ERROR)
+            """
+        )
+
+        parser.add_argument(
+            "--config",
+            type=str,
+            help="Path to configuration file (JSON format)"
+        )
+
+        parser.add_argument(
+            "--log-level",
+            type=str,
+            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+            help="Set logging level"
+        )
+
+        parser.add_argument(
+            "--cache-dir",
+            type=str,
+            help="Directory for caching analysis results"
+        )
+
+        parser.add_argument(
+            "--max-file-size",
+            type=int,
+            default=1024*1024,  # 1MB
+            help="Maximum file size to analyze (bytes)"
+        )
+
+        parser.add_argument(
+            "--version",
+            action="version",
+            version="CGM MCP Server 0.1.0"
+        )
+
+        return parser.parse_args()
+
+    args = parse_args()
+
+    # Load configuration
+    try:
+        config = Config.load(args.config)
+    except Exception as e:
+        print(f"Error loading configuration: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Setup logging
+    log_level = args.log_level or config.server_config.log_level
+    setup_logging(log_level)
+
+    logger.info("Starting CGM MCP Server")
+    logger.info(f"Log Level: {log_level}")
+
+    if args.cache_dir:
+        logger.info(f"Cache Directory: {args.cache_dir}")
+
+    if args.max_file_size:
+        logger.info(f"Max File Size: {args.max_file_size} bytes")
+
+    logger.info("Available tools:")
+    logger.info("  • cgm_process_issue - Process repository issues using CGM framework")
+    logger.info("  • cgm_get_task_status - Get task status")
+    logger.info("  • cgm_health_check - Health check")
+
+    try:
+        # Start the MCP server
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error(f"Server error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

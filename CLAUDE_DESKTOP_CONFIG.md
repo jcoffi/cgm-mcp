@@ -5,6 +5,37 @@
 ### Configuration for Claude Desktop
 Add this to your Claude Desktop configuration file:
 
+#### Option 1: Using uvx (recommended)
+```json
+{
+  "mcpServers": {
+    "cgm-mcp": {
+      "command": "uvx",
+      "args": ["cgm-mcp", "--config", "/path/to/cgm-mcp/config-cgm-mcp.json"],
+      "env": {
+        "CGM_LLM_API_KEY": "your-anthropic-api-key-here"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using pip-installed package
+```json
+{
+  "mcpServers": {
+    "cgm-mcp": {
+      "command": "cgm-mcp",
+      "args": ["--config", "/path/to/cgm-mcp/config-cgm-mcp.json"],
+      "env": {
+        "CGM_LLM_API_KEY": "your-anthropic-api-key-here"
+      }
+    }
+  }
+}
+```
+
+#### Option 3: Direct Python execution
 ```json
 {
   "mcpServers": {
@@ -62,6 +93,32 @@ export CGM_LLM_API_KEY=your-anthropic-api-key-here
 ## CGM MCP Modelless Server (Code Analysis Only)
 
 ### Configuration for Claude Desktop
+
+#### Option 1: Using uvx (recommended)
+```json
+{
+  "mcpServers": {
+    "cgm-mcp-modelless": {
+      "command": "uvx",
+      "args": ["cgm-mcp-modelless", "--config", "/path/to/cgm-mcp/config-cgm-mcp-modelless.json"]
+    }
+  }
+}
+```
+
+#### Option 2: Using pip-installed package
+```json
+{
+  "mcpServers": {
+    "cgm-mcp-modelless": {
+      "command": "cgm-mcp-modelless",
+      "args": ["--config", "/path/to/cgm-mcp/config-cgm-mcp-modelless.json"]
+    }
+  }
+}
+```
+
+#### Option 3: Direct Python execution
 ```json
 {
   "mcpServers": {
@@ -105,10 +162,40 @@ export CGM_LLM_API_KEY=your-anthropic-api-key-here
 
 ### Starting Servers Manually
 
+#### Using uvx (recommended - no installation needed):
+**Full CGM MCP Server:**
+```bash
+export CGM_LLM_API_KEY=your-api-key
+uvx cgm-mcp --config config-cgm-mcp.json
+```
+
+**Modelless CGM MCP Server:**
+```bash
+uvx cgm-mcp-modelless --config config-cgm-mcp-modelless.json
+```
+
+#### Using pip-installed package:
+First install the package:
+```bash
+pip install cgm-mcp
+```
+
+Then run:
+**Full CGM MCP Server:**
+```bash
+export CGM_LLM_API_KEY=your-api-key
+cgm-mcp --config config-cgm-mcp.json
+```
+
+**Modelless CGM MCP Server:**
+```bash
+cgm-mcp-modelless --config config-cgm-mcp-modelless.json
+```
+
+#### Using direct Python execution:
 **Full CGM MCP Server:**
 ```bash
 cd /path/to/cgm-mcp
-export CGM_LLM_PROVIDER=anthropic
 export CGM_LLM_API_KEY=your-api-key
 python main.py --config config-cgm-mcp.json
 ```
