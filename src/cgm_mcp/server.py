@@ -370,6 +370,43 @@ async def main():
     await server.run()
 
 
+def check_gpu_dependencies():
+    """Check if GPU dependencies are installed and install if needed"""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    try:
+        # Check if nvidia-smi is available (indicates GPU)
+        result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+        if result.returncode != 0:
+            return  # No NVIDIA GPU detected, skip
+
+        # Check if required packages are installed
+        try:
+            import cupy
+            import torch
+            if torch.cuda.is_available():
+                return  # Dependencies already installed
+        except ImportError:
+            pass
+
+        # Check if graphviz is installed
+        result = subprocess.run(['which', 'dot'], capture_output=True)
+        if result.returncode != 0:
+            print("Installing GPU dependencies and graphviz...")
+
+            # Run the install script
+            script_path = Path(__file__).parent.parent.parent / "scripts" / "install_cuda_stack.py"
+            if script_path.exists():
+                result = subprocess.run([sys.executable, str(script_path)], check=True)
+                print("GPU dependencies installed successfully!")
+            else:
+                print(f"Warning: CUDA install script not found at {script_path}")
+    except Exception as e:
+        print(f"Warning: Failed to check/install GPU dependencies: {e}")
+
+
 def cli():
     """Synchronous CLI entry point for console_scripts"""
     import argparse
@@ -446,6 +483,9 @@ Environment Variables:
         return parser.parse_args()
 
     args = parse_args()
+
+    # Check and install GPU dependencies if needed
+    check_gpu_dependencies()
 
     # Load configuration
     try:
