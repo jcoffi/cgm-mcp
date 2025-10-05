@@ -1,0 +1,15 @@
+{
+  "graph": {
+    "max_nodes": 10000,
+    "max_edges": 50000,
+    "cache_enabled": true,
+    "cache_ttl": 3600
+  },
+  "server": {
+    "host": "localhost",
+    "port": 8000,
+    "log_level": "INFO",
+    "max_concurrent_tasks": 10,
+    "task_timeout": 300
+  }
+}
