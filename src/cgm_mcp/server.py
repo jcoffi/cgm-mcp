@@ -386,8 +386,14 @@ def check_gpu_dependencies():
         try:
             import cupy
             import torch
-            if torch.cuda.is_available():
-                return  # Dependencies already installed
+            torch_cuda = torch.cuda.is_available()
+            cupy_cuda = False
+            try:
+                cupy_cuda = cupy.cuda.runtime.getDeviceCount() > 0
+            except Exception:
+                cupy_cuda = False
+            if torch_cuda and cupy_cuda:
+                return  # Dependencies already installed and both libraries can use CUDA
         except ImportError:
             pass
 
