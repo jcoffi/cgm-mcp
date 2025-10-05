@@ -7,10 +7,14 @@ Main server implementation using the Model Context Protocol (MCP)
 import asyncio
 import json
 import uuid
+import hashlib
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import psutil
+from cachetools import TTLCache, LRUCache
 from loguru import logger
 from mcp.server import Server
 from mcp.server.lowlevel.server import NotificationOptions
@@ -32,6 +36,23 @@ from .components import (
     RetrieverComponent,
     RewriterComponent,
 )
+from .core.analyzer import CGMAnalyzer
+from .core.analyzer_optimized import OptimizedCGMAnalyzer
+
+# Optional GPU imports for full server
+try:
+    # Only import GPU components if torch is available
+    import torch
+    from .core.gpu_enhanced_analyzer import GPUEnhancedAnalyzer
+    from .core.gpu_accelerator import GPUAcceleratorConfig
+    GPU_AVAILABLE = True
+    logger.info("GPU components available for full server")
+except ImportError as e:
+    logger.info(f"GPU components not available in full server (this is normal): {e}")
+    GPUEnhancedAnalyzer = None
+    GPUAcceleratorConfig = None
+    GPU_AVAILABLE = False
+
 from .models import (
     CGMRequest,
     CGMResponse,
@@ -41,6 +62,11 @@ from .models import (
     RetrieverRequest,
     RewriterRequest,
     TaskType,
+    CodeAnalysisRequest,
+    CodeAnalysisResponse,
+    CodeEntity,
+    CodeRelation,
+    FileAnalysis,
 )
 from .utils.config import Config
 from .utils.llm_client import LLMClient
@@ -61,10 +87,73 @@ class CGMServer:
         self.reader = ReaderComponent(self.llm_client)
         self.graph_builder = GraphBuilder()
 
+        # Initialize analyzer - prefer optimized for full server to avoid GPU dependencies unless requested
+        if GPU_AVAILABLE and getattr(config, 'use_gpu', False):
+            try:
+                # Setup GPU accelerator config only if available
+                gpu_config = GPUAcceleratorConfig(
+                    use_gpu=True,
+                    batch_size=getattr(config, 'gpu_batch_size', 1024),
+                    similarity_threshold=getattr(config, 'similarity_threshold', 0.1)
+                )
+                self.analyzer = GPUEnhancedAnalyzer(gpu_config)
+                logger.info("GPU-enhanced analyzer initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize GPU analyzer, falling back to optimized: {e}")
+                self.analyzer = OptimizedCGMAnalyzer()
+        else:
+            self.analyzer = OptimizedCGMAnalyzer()
+            if not GPU_AVAILABLE:
+                logger.info("Using optimized analyzer (GPU components not available)")
+            else:
+                logger.info("Using optimized analyzer (GPU disabled in config)")
+
+        # Enhanced caching system
+        self.analysis_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
+        self.file_cache = LRUCache(maxsize=500)  # File-level cache
+        self.ast_cache = LRUCache(maxsize=200)   # AST parsing cache
+
+        # Performance monitoring
+        self.cache_stats = {
+            "hits": 0,
+            "misses": 0,
+            "file_hits": 0,
+            "file_misses": 0
+        }
+
         # Task storage
         self.tasks: Dict[str, CGMResponse] = {}
 
         self._setup_handlers()
+
+    def _generate_cache_key(self, *args) -> str:
+        """Generate a consistent cache key from arguments"""
+        key_data = "|".join(str(arg) for arg in args)
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    def _get_memory_usage(self) -> Dict[str, Any]:
+        """Get current memory usage statistics"""
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        return {
+            "rss_mb": memory_info.rss / 1024 / 1024,
+            "vms_mb": memory_info.vms / 1024 / 1024,
+            "percent": process.memory_percent()
+        }
+
+    def _cleanup_caches_if_needed(self):
+        """Clean up caches if memory usage is too high"""
+        memory_usage = self._get_memory_usage()
+        if memory_usage["percent"] > 80:  # If using more than 80% memory
+            logger.warning(f"High memory usage ({memory_usage['percent']:.1f}%), clearing caches")
+            self.file_cache.clear()
+            self.ast_cache.clear()
+            # Keep analysis cache but reduce size
+            if len(self.analysis_cache) > 50:
+                # Remove oldest entries
+                keys_to_remove = list(self.analysis_cache.keys())[:len(self.analysis_cache)//2]
+                for key in keys_to_remove:
+                    self.analysis_cache.pop(key, None)
 
     def _setup_handlers(self):
         """Setup MCP server handlers"""
@@ -75,14 +164,32 @@ class CGMServer:
             return [
                 Resource(
                     uri="cgm://health",
-                    name="Health Check",
-                    description="CGM server health status",
+                    name="CGM Health Status",
+                    description="CGM analyzer health and status information",
                     mimeType="application/json",
                 ),
                 Resource(
                     uri="cgm://tasks",
                     name="Active Tasks",
                     description="List of active CGM tasks",
+                    mimeType="application/json",
+                ),
+                Resource(
+                    uri="cgm://cache",
+                    name="Analysis Cache",
+                    description="Cached analysis results and performance statistics",
+                    mimeType="application/json",
+                ),
+                Resource(
+                    uri="cgm://performance",
+                    name="Performance Metrics",
+                    description="Server performance and memory usage metrics",
+                    mimeType="application/json",
+                ),
+                Resource(
+                    uri="cgm://gpu",
+                    name="GPU Statistics",
+                    description="GPU acceleration status and memory usage",
                     mimeType="application/json",
                 ),
             ]
@@ -108,6 +215,52 @@ class CGMServer:
                     },
                     indent=2,
                 )
+            elif uri == "cgm://cache":
+                cache_info = {
+                    "analysis_cache": {
+                        "size": len(self.analysis_cache),
+                        "maxsize": self.analysis_cache.maxsize,
+                        "ttl": getattr(self.analysis_cache, 'ttl', None),
+                        "keys": list(self.analysis_cache.keys())[:10]  # Show first 10 keys
+                    },
+                    "file_cache": {
+                        "size": len(self.file_cache),
+                        "maxsize": self.file_cache.maxsize,
+                    },
+                    "ast_cache": {
+                        "size": len(self.ast_cache),
+                        "maxsize": self.ast_cache.maxsize,
+                    },
+                    "stats": self.cache_stats
+                }
+                return json.dumps(cache_info, indent=2)
+            elif uri == "cgm://performance":
+                perf_info = {
+                    "memory_usage": self._get_memory_usage(),
+                    "cache_stats": self.cache_stats,
+                    "cache_hit_rate": (
+                        self.cache_stats["hits"] /
+                        max(1, self.cache_stats["hits"] + self.cache_stats["misses"])
+                    ),
+                    "file_cache_hit_rate": (
+                        self.cache_stats["file_hits"] /
+                        max(1, self.cache_stats["file_hits"] + self.cache_stats["file_misses"])
+                    ),
+                    "timestamp": datetime.now().isoformat(),
+                }
+                return json.dumps(perf_info, indent=2)
+            elif uri == "cgm://gpu":
+                # GPU statistics (if available)
+                if hasattr(self.analyzer, 'get_gpu_stats'):
+                    gpu_info = self.analyzer.get_gpu_stats()
+                    gpu_info["timestamp"] = datetime.now().isoformat()
+                else:
+                    gpu_info = {
+                        "gpu_available": False,
+                        "message": "GPU acceleration not available",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                return json.dumps(gpu_info, indent=2)
             else:
                 raise ValueError(f"Unknown resource: {uri}")
 
@@ -115,6 +268,113 @@ class CGMServer:
         async def handle_list_tools() -> List[Tool]:
             """List available tools"""
             return [
+                # Analysis Tools (from modelless server)
+                Tool(
+                    name="cgm_analyze_repository",
+                    description="Analyze repository structure and extract code context",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "repository_path": {
+                                "type": "string",
+                                "description": "Path to the repository to analyze",
+                            },
+                            "query": {
+                                "type": "string",
+                                "description": "Analysis query or focus area (e.g., 'authentication', 'user management')",
+                            },
+                            "analysis_scope": {
+                                "type": "string",
+                                "enum": ["minimal", "focused", "full"],
+                                "description": "Scope of analysis",
+                                "default": "focused",
+                            },
+                            "focus_files": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Specific files to focus on (optional)",
+                            },
+                            "max_files": {
+                                "type": "integer",
+                                "description": "Maximum number of files to analyze in detail",
+                                "default": 10,
+                            },
+                        },
+                        "required": ["repository_path", "query"],
+                    },
+                ),
+                Tool(
+                    name="cgm_get_file_content",
+                    description="Get detailed content and analysis of specific files",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "repository_path": {
+                                "type": "string",
+                                "description": "Path to the repository",
+                            },
+                            "file_paths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of file paths to analyze",
+                            },
+                        },
+                        "required": ["repository_path", "file_paths"],
+                    },
+                ),
+                Tool(
+                    name="cgm_find_related_code",
+                    description="Find code entities related to a specific entity or concept",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "repository_path": {
+                                "type": "string",
+                                "description": "Path to the repository",
+                            },
+                            "entity_name": {
+                                "type": "string",
+                                "description": "Name of the entity to find relations for",
+                            },
+                            "relation_types": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Types of relations to include (optional)",
+                            },
+                        },
+                        "required": ["repository_path", "entity_name"],
+                    },
+                ),
+                Tool(
+                    name="cgm_extract_context",
+                    description="Extract structured context for external model consumption",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "repository_path": {
+                                "type": "string",
+                                "description": "Path to the repository",
+                            },
+                            "query": {"type": "string", "description": "Context query"},
+                            "format": {
+                                "type": "string",
+                                "enum": ["structured", "markdown", "prompt"],
+                                "description": "Output format",
+                                "default": "structured",
+                            },
+                        },
+                        "required": ["repository_path", "query"],
+                    },
+                ),
+                Tool(
+                    name="clear_gpu_cache",
+                    description="Clear GPU caches to free memory",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {},
+                    },
+                ),
+                # LLM-powered Tools (original CGM pipeline)
                 Tool(
                     name="cgm_process_issue",
                     description="Process a repository issue using CGM framework",
@@ -178,7 +438,45 @@ class CGMServer:
         ) -> List[TextContent]:
             """Handle tool calls"""
             try:
-                if name == "cgm_process_issue":
+                # Handle modelless analysis tools
+                if name == "cgm_analyze_repository":
+                    result = await self._analyze_repository(arguments)
+                    return [
+                        TextContent(
+                            type="text", text=json.dumps(result, indent=2, default=str)
+                        )
+                    ]
+
+                elif name == "cgm_get_file_content":
+                    result = await self._get_file_content(arguments)
+                    return [
+                        TextContent(
+                            type="text", text=json.dumps(result, indent=2, default=str)
+                        )
+                    ]
+
+                elif name == "cgm_find_related_code":
+                    result = await self._find_related_code(arguments)
+                    return [
+                        TextContent(
+                            type="text", text=json.dumps(result, indent=2, default=str)
+                        )
+                    ]
+
+                elif name == "cgm_extract_context":
+                    result = await self._extract_context(arguments)
+                    return [TextContent(type="text", text=result)]
+
+                elif name == "clear_gpu_cache":
+                    result = await self._clear_gpu_cache(arguments)
+                    return [
+                        TextContent(
+                            type="text", text=json.dumps(result, indent=2, default=str)
+                        )
+                    ]
+
+                # Handle LLM-powered CGM pipeline tools
+                elif name == "cgm_process_issue":
                     result = await self._process_issue(arguments)
                     return [
                         TextContent(
@@ -343,6 +641,245 @@ class CGMServer:
             components=components,
             timestamp=datetime.now().isoformat(),
         )
+
+    # Modelless tool handler methods (copied from server_modelless.py)
+
+    async def _analyze_repository(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze repository and return structured results"""
+        try:
+            request = CodeAnalysisRequest(**arguments)
+
+            # Generate more precise cache key
+            cache_key = self._generate_cache_key(
+                request.repository_path,
+                request.query,
+                request.analysis_scope,
+                str(sorted(request.focus_files or [])),
+                request.max_files
+            )
+
+            # Check cache
+            if cache_key in self.analysis_cache:
+                logger.info(f"Cache hit for repository analysis: {cache_key[:16]}...")
+                self.cache_stats["hits"] += 1
+                response = self.analysis_cache[cache_key]
+            else:
+                logger.info(f"Cache miss - analyzing repository: {request.repository_path}")
+                self.cache_stats["misses"] += 1
+
+                # Clean up caches if needed before heavy operation
+                self._cleanup_caches_if_needed()
+
+                response = await self.analyzer.analyze_repository(request)
+
+                # Cache the result
+                self.analysis_cache[cache_key] = response
+
+            return {
+                "status": "success",
+                "analysis": response.dict(),
+                "summary": response.context_summary,
+                "entity_count": len(response.relevant_entities),
+                "file_count": len(response.file_analyses),
+            }
+
+        except Exception as e:
+            logger.error(f"Error in repository analysis: {e}")
+            return {"status": "error", "error": str(e)}
+
+    async def _get_file_content(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Get detailed file content and analysis with caching and concurrency"""
+        try:
+            repo_path = arguments["repository_path"]
+            file_paths = arguments["file_paths"]
+
+            # Process files concurrently
+            tasks = []
+            for file_path in file_paths:
+                full_path = f"{repo_path}/{file_path}"
+                tasks.append(self._get_cached_file_analysis(full_path, file_path))
+
+            # Wait for all file analyses to complete
+            file_analyses = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Filter out exceptions and None results
+            valid_analyses = []
+            for analysis in file_analyses:
+                if isinstance(analysis, Exception):
+                    logger.warning(f"File analysis failed: {analysis}")
+                elif analysis is not None:
+                    valid_analyses.append(analysis)
+
+            return {
+                "status": "success",
+                "file_count": len(valid_analyses),
+                "files": valid_analyses,
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting file content: {e}")
+            return {"status": "error", "error": str(e)}
+
+    async def _get_cached_file_analysis(self, full_path: str, relative_path: str) -> Optional[Dict[str, Any]]:
+        """Get cached file analysis or analyze and cache it"""
+        try:
+            # Check file cache first
+            if full_path in self.file_cache:
+                self.cache_stats["file_hits"] += 1
+                cached_data = self.file_cache[full_path]
+                return {
+                    "file_path": relative_path,
+                    "content": cached_data["content"],
+                    "metadata": cached_data["metadata"],
+                    "structure": cached_data["structure"],
+                    "dependencies": cached_data["dependencies"],
+                }
+
+            self.cache_stats["file_misses"] += 1
+
+            # Analyze file
+            analysis = await self.analyzer.analyze_file(full_path)
+
+            # Cache the result
+            self.file_cache[full_path] = {
+                "content": analysis.content,
+                "metadata": analysis.metadata,
+                "structure": analysis.structure,
+                "dependencies": analysis.dependencies,
+            }
+
+            return {
+                "file_path": relative_path,
+                "content": analysis.content,
+                "metadata": analysis.metadata,
+                "structure": analysis.structure,
+                "dependencies": analysis.dependencies,
+            }
+
+        except Exception as e:
+            logger.error(f"Error analyzing file {full_path}: {e}")
+            return None
+
+    async def _find_related_code(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Find code entities related to a specific entity"""
+        try:
+            repo_path = arguments["repository_path"]
+            entity_name = arguments["entity_name"]
+            relation_types = arguments.get("relation_types")
+
+            # Use analyzer to find related code
+            related_result = await self.analyzer.find_related_code(
+                repository_path=repo_path,
+                entity_name=entity_name,
+                relation_types=relation_types
+            )
+
+            return {
+                "status": "success",
+                "target_entity": related_result.target_entity.dict() if related_result.target_entity else None,
+                "related_entities": [
+                    {
+                        "entity": item.entity.dict(),
+                        "relation": item.relation.dict()
+                    }
+                    for item in related_result.related_entities
+                ],
+            }
+
+        except Exception as e:
+            logger.error(f"Error finding related code: {e}")
+            return {"status": "error", "error": str(e)}
+
+    async def _extract_context(self, arguments: Dict[str, Any]) -> str:
+        """Extract structured context for external model consumption"""
+        try:
+            request = CodeAnalysisRequest(**arguments)
+
+            # Get analysis result
+            analysis_result = await self.analyzer.analyze_repository(request)
+
+            # Format based on requested format
+            format_type = arguments.get("format", "structured")
+
+            if format_type == "structured":
+                return json.dumps(analysis_result.dict(), indent=2)
+            elif format_type == "markdown":
+                return self._format_context_markdown(analysis_result)
+            elif format_type == "prompt":
+                return self._format_context_prompt(analysis_result)
+            else:
+                raise ValueError(f"Unknown format: {format_type}")
+
+        except Exception as e:
+            logger.error(f"Error extracting context: {e}")
+            return f"Error: {str(e)}"
+
+    def _format_context_markdown(self, analysis_result: CodeAnalysisResponse) -> str:
+        """Format analysis result as markdown"""
+        lines = [f"# Code Analysis: {analysis_result.repository_path}\n"]
+        lines.append(f"Repository contains {len(analysis_result.file_analyses)} files and {len(analysis_result.relevant_entities)} code entities.\n")
+        lines.append(f"**Summary:** {analysis_result.context_summary}\n")
+
+        if analysis_result.relevant_entities:
+            lines.append("## Relevant Code Entities\n")
+            for entity in analysis_result.relevant_entities[:10]:  # Limit to 10
+                lines.append(f"### {entity.type.title()}: {entity.name}")
+                lines.append(f"**File:** `{entity.file_path}`")
+                if entity.metadata:
+                    lines.append(f"**Details:** {entity.metadata.get('description', 'N/A')}")
+                lines.append("")
+
+        return "\n".join(lines)
+
+    def _format_context_prompt(self, analysis_result: CodeAnalysisResponse) -> str:
+        """Format analysis result as a prompt for external models"""
+        lines = [f"# Repository Code Context\n"]
+        lines.append(f"Repository: {analysis_result.repository_path}")
+        lines.append(f"Analysis Summary: {analysis_result.context_summary}\n")
+
+        lines.append("## Code Structure\n")
+
+        # Group entities by type
+        entities_by_type = {}
+        for entity in analysis_result.relevant_entities:
+            entity_type = entity.type
+            if entity_type not in entities_by_type:
+                entities_by_type[entity_type] = []
+            entities_by_type[entity_type].append(entity.name)
+
+        for entity_type, names in entities_by_type.items():
+            lines.append(f"### {entity_type.title()}s:")
+            for name in names[:5]:  # Limit to 5 per type
+                lines.append(f"- {name}")
+            lines.append("")
+
+        lines.append("## Key File Contents\n")
+
+        for file_analysis in analysis_result.file_analyses[:3]:  # Limit to 3 files
+            lines.append(f"### File: {file_analysis.file_path}")
+            lines.append("```python")            # Show first 20 lines or so
+            content_lines = file_analysis.content.split('\n')[:20]
+            lines.extend(content_lines)
+            if len(file_analysis.content.split('\n')) > 20:
+                lines.append("... (truncated)")
+            lines.append("```")
+            lines.append("")
+
+        lines.append("Use this context to understand the codebase structure and relationships.")
+
+        return "\n".join(lines)
+
+    async def _clear_gpu_cache(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Clear GPU caches to free memory"""
+        try:
+            if hasattr(self.analyzer, 'clear_gpu_cache'):
+                await self.analyzer.clear_gpu_cache()
+                return {"status": "success", "message": "GPU cache cleared"}
+            else:
+                return {"status": "success", "message": "No GPU cache to clear"}
+        except Exception as e:
+            logger.error(f"Error clearing GPU cache: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def run(self):
         """Run the MCP server"""
