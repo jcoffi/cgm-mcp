@@ -1,7 +1,7 @@
-#EDIT: Add a single-command setup-and-run script for MCP server with optional GPU acceleration
 #!/usr/bin/env bash
 
 # One-shot setup and launch for CGM MCP (stdio) server.
+# - Clones the repo anonymously if not already present
 # - Creates venv if missing
 # - Installs dependencies (Torch GPU where available via requirements.txt)
 # - Optionally installs CuPy for NVIDIA if CGM_INSTALL_CUPY=true
@@ -9,22 +9,46 @@
 # - Starts the MCP stdio server (intended to be spawned by an MCP client)
 #
 # Usage examples:
-#   ./scripts/run_mcp.sh                         # Use existing env/.env
-#   CGM_LLM_PROVIDER=openai CGM_LLM_API_KEY=... ./scripts/run_mcp.sh
-#   CGM_INSTALL_CUPY=true ./scripts/run_mcp.sh   # Attempt CuPy install for NVIDIA
+#   wget https://raw.githubusercontent.com/jcoffi/cgm-mcp/add-run-mcp-script/scripts/run_mcp.sh && chmod +x run_mcp.sh && ./run_mcp.sh
+#   CGM_LLM_PROVIDER=openai CGM_LLM_API_KEY=... ./run_mcp.sh
+#   CGM_INSTALL_CUPY=true ./run_mcp.sh   # Attempt CuPy install for NVIDIA
 #
 # In Claude Desktop config, set command to bash and args to:
-#   ["-lc", "/absolute/path/to/scripts/run_mcp.sh"]
+#   ["-lc", "/absolute/path/to/run_mcp.sh"]
 
 set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
 
 blue()  { printf "\033[0;34m[INFO]\033[0m %s\n" "$*"; }
 green() { printf "\033[0;32m[SUCCESS]\033[0m %s\n" "$*"; }
 yellow(){ printf "\033[1;33m[WARNING]\033[0m %s\n" "$*"; }
 red()   { printf "\033[0;31m[ERROR]\033[0m %s\n" "$*"; }
+
+# 0) Bootstrap: Clone repo if not already present
+BOOTSTRAPPED=false
+if [ ! -f "main.py" ] || [ ! -d ".git" ]; then
+  blue "CGM-MCP repo not detected. Performing anonymous git clone..."
+  if [ -d "cgm-mcp/.git" ]; then
+    cd cgm-mcp
+  else
+    if command -v git >/dev/null 2>&1; then
+      git clone https://github.com/jcoffi/cgm-mcp.git cgm-mcp
+      cd cgm-mcp
+    else
+      red "git not found. Please install git or run this script from within the repo."
+      exit 1
+    fi
+  fi
+  green "Repo cloned and entered."
+  BOOTSTRAPPED=true
+fi
+
+# Determine repo root
+if [ "$BOOTSTRAPPED" = true ]; then
+  ROOT_DIR="$(pwd)"
+else
+  ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  cd "$ROOT_DIR"
+fi
 
 # # 1) Safety: avoid racing pip installs in ephemeral envs
 # if pgrep -fa "(pip|python(3)? -m pip)" >/dev/null 2>&1; then
@@ -72,8 +96,6 @@ echo
 # 8) Load .env if present (does not override already-exported vars)
 if [ -f .env ]; then
   blue "Loading .env (without overriding existing environment)..."
-  # export only variables that are not already set in environment
-  # shellcheck disable=SC2046
   set -a
   while IFS= read -r line; do
     # skip comments/empty
@@ -89,15 +111,15 @@ else
   yellow ".env not found; relying on current environment."
 fi
 
-# # 9) Provider sanity: default to openai if API key provided; else keep existing or fallback to mock
-# if [[ -n "${CGM_LLM_API_KEY:-}" ]]; then
-#   export CGM_LLM_PROVIDER="${CGM_LLM_PROVIDER:-openai}"
-# else
-#   export CGM_LLM_PROVIDER="${CGM_LLM_PROVIDER:-mock}"
-# fi
-# export CGM_LOG_LEVEL="${CGM_LOG_LEVEL:-INFO}"
+# 9) Provider sanity: default to openai if API key provided; else keep existing or fallback to mock
+if [[ -n "${CGM_LLM_API_KEY:-}" ]]; then
+  export CGM_LLM_PROVIDER="${CGM_LLM_PROVIDER:-openai}"
+else
+  export CGM_LLM_PROVIDER="${CGM_LLM_PROVIDER:-mock}"
+fi
+export CGM_LOG_LEVEL="${CGM_LOG_LEVEL:-INFO}"
 
-blue "Starting CGM MCP Server (log=$CGM_LOG_LEVEL)..."
+blue "Starting CGM MCP Server (provider=$CGM_LLM_PROVIDER, log=$CGM_LOG_LEVEL)..."
 
 # 10) Exec stdio MCP server. This process should be started by an MCP client (e.g., Claude Desktop),
 # which will communicate over stdio. Running it standalone without a client will typically exit early.
