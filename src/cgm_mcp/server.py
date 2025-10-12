@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
+from mcp.server.lowlevel.server import NotificationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import (
     EmbeddedResource,
@@ -355,7 +356,7 @@ class CGMServer:
                     server_name="cgm-mcp",
                     server_version="0.1.0",
                     capabilities=self.server.get_capabilities(
-                        notification_options=None,
+                        notification_options=NotificationOptions(resources_changed=True),
                         experimental_capabilities=None,
                     ),
                 ),
