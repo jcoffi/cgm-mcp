@@ -63,7 +63,7 @@ Repository = "https://github.com/yangweijie/cgm-mcp"
 Documentation = "https://github.com/yangweijie/cgm-mcp/blob/main/README.md"
 
 [project.scripts]
-cgm-mcp = "cgm_mcp.server:main"
+cgm-mcp = "cgm_mcp.server:cli_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
