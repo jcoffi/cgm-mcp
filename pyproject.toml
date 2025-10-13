@@ -64,6 +64,7 @@ Documentation = "https://github.com/yangweijie/cgm-mcp/blob/main/README.md"
 
 [project.scripts]
 cgm-mcp = "cgm_mcp.server:cli_main"
+cgm-mcp-modelless = "cgm_mcp.server_modelless:cli_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
