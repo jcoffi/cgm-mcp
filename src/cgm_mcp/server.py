@@ -85,6 +85,12 @@ class CGMServer:
                     description="List of active CGM tasks",
                     mimeType="application/json",
                 ),
+                Resource(
+                    uri="cgm://agent_tooling",
+                    name="Agent Tooling Guide",
+                    description="Machine-readable guide for external LLM/agents (call read_resource to retrieve).",
+                    mimeType="text/markdown",
+                ),
             ]
 
         @self.server.read_resource()

@@ -143,6 +143,13 @@ class ModellessCGMServer:
                     description="GPU acceleration performance and memory statistics",
                     mimeType="application/json",
                 ),
+                Resource(
+                    uri="cgm://tool_instructions",
+                    name="Tool Instructions",
+                    description="Machine-readable tool schemas and recommended usage for external LLM/agents",
+                    mimeType="application/json",
+                ),
+
             ]
 
         @self.server.read_resource()
@@ -202,6 +209,56 @@ class ModellessCGMServer:
                         "timestamp": datetime.now().isoformat()
                     }
                 return json.dumps(gpu_info, indent=2)
+            elif uri == "cgm://tool_instructions":
+                # Provide machine-readable tool instructions for external agents
+                # Keep content concise and stable; prefer JSON for programmatic clients
+                instructions = {
+                    "tools": [
+                        {
+                            "name": "cgm_analyze_repository",
+                            "input_schema": {
+                                "repository_path": "string",
+                                "query": "string",
+                                "analysis_scope": "minimal|focused|full",
+                                "focus_files": "array[string]",
+                                "max_files": "int"
+                            },
+                            "description": "Analyze repository structure and extract context for external models. Use when you need code lists, file analysis, or context generation."
+                        },
+                        {
+                            "name": "cgm_get_file_content",
+                            "input_schema": {
+                                "repository_path": "string",
+                                "file_paths": "array[string]"
+                            },
+                            "description": "Return file contents and lightweight analysis."
+                        },
+                        {
+                            "name": "cgm_find_related_code",
+                            "input_schema": {
+                                "repository_path": "string",
+                                "entity_name": "string",
+                                "relation_types": "array[string]"
+                            },
+                            "description": "Find code entities related to an entity."
+                        },
+                        {
+                            "name": "cgm_extract_context",
+                            "input_schema": {
+                                "repository_path": "string",
+                                "query": "string",
+                                "format": "structured|markdown|prompt"
+                            },
+                            "description": "Extract structured context; prefer 'prompt' format for LLM consumption."
+                        }
+                    ],
+                    "resources": ["cgm://health", "cgm://cache", "cgm://performance", "cgm://gpu"],
+                    "polling_guidance": {
+                        "recommended_backoff_seconds": [1, 2, 4, 8],
+                        "max_attempts": 10
+                    }
+                }
+                return json.dumps(instructions, indent=2)
             else:
                 raise ValueError(f"Unknown resource: {uri}")
 
