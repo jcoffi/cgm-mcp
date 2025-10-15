@@ -115,17 +115,45 @@ class CGMServer:
                     indent=2,
                 )
             elif uri == "cgm://agent_tooling":
-                # Provide a small machine-friendly pointer to the modelless resource
-                # and basic usage guidance so clients won't hit Unknown resource.
-                instructions = {
-                    "note": "This server advertises cgm://agent_tooling. For full machine-readable tool schemas and examples use the modelless resource cgm://tool_instructions (if available).",
-                    "how_to_discover": [
-                        "Call list_tools() to enumerate tools and their inputSchema.",
-                        "Call read_resource('cgm://tool_instructions') on the modelless server for example inputs and parsing guidance.",
-                        "Use call_tool(name, arguments) to invoke tools; parse the first TextContent.text as JSON unless the tool documents plain-text output."
+                # Machine-readable payload describing tools available on the primary MCP server.
+                payload = {
+                    "version": "1.0",
+                    "source": "primary",
+                    "tools": [
+                        {
+                            "name": "cgm_process_issue",
+                            "description": "Process a repository issue using CGM framework",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "task_type": {"type": "string"},
+                                    "repository_name": {"type": "string"},
+                                    "issue_description": {"type": "string"},
+                                },
+                                "required": ["task_type", "repository_name", "issue_description"],
+                            },
+                            "example_input": {"task_type": "issue_resolution", "repository_name": "myrepo", "issue_description": "Fix bug in X"},
+                            "example_call": "{\"name\": \"cgm_process_issue\", \"input\": {\"task_type\": \"issue_resolution\", \"repository_name\": \"myrepo\", \"issue_description\": \"Fix bug in X\"}}",
+                            "parse_instructions": "Return a JSON object with keys: task_id (string), status (string), summary (string)."
+                        },
+                        {
+                            "name": "cgm_get_task_status",
+                            "description": "Get the status of a CGM task",
+                            "input_schema": {"type": "object", "properties": {"task_id": {"type": "string"}}, "required": ["task_id"]},
+                            "example_input": {"task_id": "<task-id>"},
+                            "example_call": "{\"name\": \"cgm_get_task_status\", \"input\": {\"task_id\": \"<task-id>\"}}",
+                            "parse_instructions": "Return a JSON object representing the task with its current status."
+                        }
                     ],
+                    "how_to_call": [
+                        "Call list_resources() on the MCP server to discover cgm://agent_tooling.",
+                        "Call read_resource('cgm://agent_tooling') to retrieve this JSON payload.",
+                        "Find the tool by name and format a call matching the 'example_call' field.",
+                        "Send the call using the server's call_tool method and parse the result per parse_instructions."
+                    ],
+                    "polling_guidance": "If a tool returns a task id for long-running work, poll the cgm://tasks resource for status updates."
                 }
-                return json.dumps(instructions, indent=2)
+                return json.dumps(payload, indent=2)
             else:
                 raise ValueError(f"Unknown resource: {uri}")
 
