@@ -166,39 +166,7 @@ class CGMServer:
                     inputSchema={
                         "type": "object",
 
-            if uri == "cgm://agent_tooling":
-                # Machine-readable payload describing tools available on the primary MCP server.
-                payload = {
-                    "version": "1.0",
-                    "source": "primary",
-                    "tools": [
-                        {
-                            "name": "cgm_list_tasks",
-                            "description": "List currently active CGM tasks on the primary server.",
-                            "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
-                            "example_input": {},
-                            "example_call": "{\"name\": \"cgm_list_tasks\", \"input\": {}}",
-                            "parse_instructions": "Return a JSON array of task objects with id, status, and name."
-                        },
-                        {
-                            "name": "cgm_read_file",
-                            "description": "Read a file from the repository using the primary server's VFS.",
-                            "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
-                            "example_input": {"path": "src/cgm_mcp/server.py"},
-                            "example_call": "{\"name\": \"cgm_read_file\", \"input\": {\"path\": \"src/cgm_mcp/server.py\"}}",
-                            "parse_instructions": "Return {'path': str, 'content': str, 'mimeType': str}."
-                        }
-                    ],
-                    "how_to_call": [
-                        "Call list_resources() on the MCP server to discover cgm://agent_tooling.",
-                        "Call read_resource('cgm://agent_tooling') to retrieve this JSON payload.",
-                        "Find the tool by name and format a call matching the 'example_call' field.",
-                        "Send the call using the server's run_task or invoke mechanism and parse the result per parse_instructions."
-                    ],
-                    "polling_guidance": "If a tool returns a task id for long-running work, poll the cgm://tasks resource for status updates."
-                }
-                return json.dumps(payload)
-
+            
                         "properties": {
                             "task_type": {
                                 "type": "string",
