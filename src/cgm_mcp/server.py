@@ -85,6 +85,12 @@ class CGMServer:
                     description="List of active CGM tasks",
                     mimeType="application/json",
                 ),
+                Resource(
+                    uri="cgm://agent_tooling",
+                    name="Agent Tooling Guide",
+                    description="Machine-readable guide for external LLM/agents (call read_resource to retrieve).",
+                    mimeType="text/markdown",
+                ),
             ]
 
         @self.server.read_resource()
@@ -108,6 +114,18 @@ class CGMServer:
                     },
                     indent=2,
                 )
+            elif uri == "cgm://agent_tooling":
+                # Provide a small machine-friendly pointer to the modelless resource
+                # and basic usage guidance so clients won't hit Unknown resource.
+                instructions = {
+                    "note": "This server advertises cgm://agent_tooling. For full machine-readable tool schemas and examples use the modelless resource cgm://tool_instructions (if available).",
+                    "how_to_discover": [
+                        "Call list_tools() to enumerate tools and their inputSchema.",
+                        "Call read_resource('cgm://tool_instructions') on the modelless server for example inputs and parsing guidance.",
+                        "Use call_tool(name, arguments) to invoke tools; parse the first TextContent.text as JSON unless the tool documents plain-text output."
+                    ],
+                }
+                return json.dumps(instructions, indent=2)
             else:
                 raise ValueError(f"Unknown resource: {uri}")
 
