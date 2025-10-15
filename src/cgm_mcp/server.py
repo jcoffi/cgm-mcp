@@ -88,8 +88,8 @@ class CGMServer:
                 Resource(
                     uri="cgm://agent_tooling",
                     name="Agent Tooling Guide",
-                    description="Machine-readable guide for external LLM/agents (call read_resource to retrieve).",
-                    mimeType="text/markdown",
+                    description="Machine-readable JSON guide for tools available on the primary MCP server.",
+                    mimeType="application/json",
                 ),
             ]
 
