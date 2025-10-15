@@ -156,8 +156,7 @@ class CGMServer:
                 return json.dumps(payload, indent=2)
             else:
                 raise ValueError(f"Unknown resource: {uri}")
-
-        @self.server.list_tools()
+@self.server.list_tools()
         async def handle_list_tools() -> List[Tool]:
             """List available tools"""
             return [
