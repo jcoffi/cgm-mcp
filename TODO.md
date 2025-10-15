@@ -1,0 +1,1 @@
+Expand the cgm://agent_tooling response to include the full machine-readable schema (instead of pointing to the modelless resource) if you prefer a single-server solution.
