@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "mcp>=0.9.0",
+    "mcp>=1.2.0,<2.0.0",
     "pydantic>=2.0.0",
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
@@ -65,6 +65,9 @@ Documentation = "https://github.com/yangweijie/cgm-mcp/blob/main/README.md"
 [project.scripts]
 cgm-mcp = "cgm_mcp.server:cli_main"
 cgm-mcp-modelless = "cgm_mcp.server_modelless:cli_main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

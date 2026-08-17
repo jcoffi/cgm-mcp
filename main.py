@@ -100,7 +100,7 @@ async def main():
     
     try:
         # Start the MCP server
-        await server_main()
+        await server_main(config)
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
