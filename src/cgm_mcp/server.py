@@ -166,7 +166,7 @@ class CGMServer:
                     inputSchema={
                         "type": "object",
 
-            
+
                         "properties": {
                             "task_type": {
                                 "type": "string",
@@ -367,16 +367,22 @@ class CGMServer:
 
     async def _get_health_status(self) -> HealthCheckResponse:
         """Get server health status"""
+        # Perform health checks for each component, with error handling for LLM client
         components = {
             "rewriter": "healthy",
             "retriever": "healthy",
             "reranker": "healthy",
             "reader": "healthy",
             "graph_builder": "healthy",
-            "llm_client": (
-                "healthy" if await self.llm_client.health_check() else "unhealthy"
-            ),
         }
+
+        # Check LLM client health with exception handling to prevent server crashes
+        try:
+            llm_healthy = await self.llm_client.health_check()
+            components["llm_client"] = "healthy" if llm_healthy else "unhealthy"
+        except Exception as e:
+            logger.warning(f"LLM client health check failed: {e}")
+            components["llm_client"] = "unhealthy"
 
         overall_status = (
             "healthy"
@@ -395,24 +401,31 @@ class CGMServer:
         """Run the MCP server"""
         logger.info("Starting CGM MCP Server")
 
-        async with stdio_server() as (read_stream, write_stream):
-            await self.server.run(
-                read_stream,
-                write_stream,
-                InitializationOptions(
-                    server_name="cgm-mcp",
-                    server_version="0.1.0",
-                    capabilities=self.server.get_capabilities(
-                        notification_options=NotificationOptions(resources_changed=True),
-                        experimental_capabilities=None,
+        try:
+            async with stdio_server() as (read_stream, write_stream):
+                await self.server.run(
+                    read_stream,
+                    write_stream,
+                    InitializationOptions(
+                        server_name="cgm-mcp",
+                        server_version="0.1.0",
+                        capabilities=self.server.get_capabilities(
+                            notification_options=NotificationOptions(resources_changed=True),
+                            experimental_capabilities=None,
+                        ),
                     ),
-                ),
-            )
+                )
+        except Exception as e:
+            logger.error(f"MCP Server error: {e}")
+            import traceback
+
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise
 
 
-async def main():
+async def main(config: Optional[Config] = None):
     """Main entry point"""
-    config = Config.load()
+    config = config or Config.load()
     server = CGMServer(config)
     await server.run()
 
