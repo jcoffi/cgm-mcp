@@ -284,6 +284,7 @@ export CGM_GPU_MEMORY_FRACTION=0.8        # GPU memory usage limit
 | `CGM_LLM_API_BASE` | Custom API base URL (for local models) | Provider default |
 | `CGM_LLM_TEMPERATURE` | Generation temperature | `0.1` |
 | `CGM_LOG_LEVEL` | Logging level | `INFO` |
+| `CGM_ALLOWED_ROOT` | Canonical root directory that repository analysis may read | Process working directory |
 
 ### Configuration File
 
@@ -379,7 +380,15 @@ Process a repository issue using the CGM framework.
 - `task_type`: Type of task (`issue_resolution`, `code_analysis`, `bug_fixing`, `feature_implementation`)
 - `repository_name`: Name of the repository
 - `issue_description`: Description of the issue
-- `repository_context`: Optional repository context
+- `repository_context`: Optional repository metadata. When `path` is supplied,
+  it must resolve within `CGM_ALLOWED_ROOT`. Without `path`, CGM searches its
+  documented repository-name locations and applies the same root restriction.
+
+Fix and implementation tasks only return `completed` when every generated patch
+targets loaded source, quotes non-empty original code from its claimed line
+range, and supplies non-empty replacement code. Otherwise the result is
+`completed_no_patches`; unavailable or disallowed source returns
+`insufficient_context`.
 
 **Example:**
 ```json

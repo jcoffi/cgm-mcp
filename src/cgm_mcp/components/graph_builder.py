@@ -7,7 +7,7 @@ Builds repository-level code graphs from source code
 import ast
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional
 
 import networkx as nx
 from loguru import logger
@@ -73,6 +73,7 @@ class GraphBuilder:
 
     async def _analyze_repository(self, repo_path: str, graph: nx.DiGraph):
         """Analyze all source files in the repository"""
+        repo_real = os.path.realpath(repo_path)
         for root, dirs, files in os.walk(repo_path):
             # Skip common non-source directories
             dirs[:] = [
@@ -80,11 +81,29 @@ class GraphBuilder:
                 for d in dirs
                 if not d.startswith(".")
                 and d not in {"node_modules", "__pycache__", "build", "dist"}
+                and not os.path.islink(os.path.join(root, d))
             ]
 
             for file in files:
                 file_path = os.path.join(root, file)
                 relative_path = os.path.relpath(file_path, repo_path)
+
+                if os.path.islink(file_path):
+                    logger.warning(f"Skipping symlinked source file: {relative_path}")
+                    continue
+
+                real_file_path = os.path.realpath(file_path)
+                try:
+                    if os.path.commonpath([repo_real, real_file_path]) != repo_real:
+                        logger.warning(
+                            f"Skipping source file outside repository: {relative_path}"
+                        )
+                        continue
+                except ValueError:
+                    logger.warning(
+                        f"Skipping source file on a different path root: {relative_path}"
+                    )
+                    continue
 
                 if self._should_analyze_file(file_path):
                     await self._analyze_file(file_path, relative_path, graph)
@@ -99,7 +118,9 @@ class GraphBuilder:
     ):
         """Analyze a single source file"""
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(file_path, flags)
+            with os.fdopen(fd, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             if file_path.endswith(".py"):
