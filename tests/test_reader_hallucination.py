@@ -14,9 +14,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from cgm_mcp.utils.source_loader import load_file_contents, resolve_repo_path, validate_repo_path
+from cgm_mcp.utils.source_loader import (
+    load_file_contents,
+    resolve_repo_path,
+    validate_repo_path,
+)
 from cgm_mcp.components.reader import ReaderComponent
-from cgm_mcp.models import ReaderRequest, ReaderResponse, CodePatch
+from cgm_mcp.models import CodePatch, ReaderResponse
 
 
 class TestSourceLoader:
@@ -120,6 +124,22 @@ class TestSourceLoader:
         result = validate_repo_path(str(repo), allowed_root=str(allowed))
         assert result is not None
 
+    @pytest.mark.asyncio
+    async def test_graph_builder_rejects_symlinked_source_file(self, tmp_path):
+        """Graph construction must not follow source symlinks out of the repo."""
+        from cgm_mcp.components.graph_builder import GraphBuilder
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        outside = tmp_path / "outside.py"
+        outside.write_text("SECRET_SENTINEL = 'must not be read'\n")
+        (repo / "linked.py").symlink_to(outside)
+
+        graph = await GraphBuilder().build_graph("repo", {"path": str(repo)})
+
+        assert all(node["id"] != "file:linked.py" for node in graph["nodes"])
+        assert "SECRET_SENTINEL" not in str(graph)
+
 
 class TestResolveRepoPath:
     """Tests for resolve_repo_path matching GraphBuilder logic."""
@@ -140,6 +160,12 @@ class TestResolveRepoPath:
             "repo", {"path": str(outside)}, allowed_root=str(allowed)
         )
         assert result is None
+
+    def test_default_allowed_root_is_current_directory(self):
+        """Repository access is confined by default, not opt-in."""
+        from cgm_mcp.utils.config import Config
+
+        assert Config().server_config.allowed_root == os.getcwd()
 
 
 class TestReaderValidation:
@@ -274,6 +300,73 @@ class TestPatchValidation:
         assert status == "completed"
         assert len(reader_result.patches) == 1
 
+    def test_patch_original_must_match_claimed_line_range(self):
+        """A snippet elsewhere in the file cannot validate a wrong range."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="def foo():\n    pass",
+                    modified_code="def foo():\n    return 42",
+                    line_start=4,
+                    line_end=5,
+                    explanation="wrong range",
+                )
+            ],
+            summary="Fixed foo",
+            confidence=0.8,
+        )
+        source = "def foo():\n    pass\n\ndef bar():\n    pass\n"
+
+        status, _ = CGMServer(Config())._validate_reader_output(
+            "test-id", "bug_fixing", reader_result, {"main.py": source}
+        )
+
+        assert status == "completed_no_patches"
+        assert reader_result.patches == []
+
+    def test_mixed_valid_and_invalid_patches_fail_closed(self):
+        """A hallucinated patch invalidates the response and its summary."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="def foo():\n    pass",
+                    modified_code="def foo():\n    return 42",
+                    line_start=1,
+                    line_end=2,
+                    explanation="valid",
+                ),
+                CodePatch(
+                    file_path="invented.py",
+                    original_code="invented",
+                    modified_code="also invented",
+                    line_start=1,
+                    line_end=1,
+                    explanation="hallucinated",
+                ),
+            ],
+            summary="Fixed main.py and invented.py",
+            confidence=0.9,
+        )
+
+        status, _ = CGMServer(Config())._validate_reader_output(
+            "test-id",
+            "bug_fixing",
+            reader_result,
+            {"main.py": "def foo():\n    pass\n"},
+        )
+
+        assert status == "completed_no_patches"
+        assert reader_result.patches == []
+        assert "could not be validated" in reader_result.summary.lower()
+
     def test_zero_patches_bug_fixing_always_no_patches(self):
         """Bug fixing task with zero patches is always completed_no_patches."""
         from cgm_mcp.server import CGMServer
@@ -293,8 +386,10 @@ class TestPatchValidation:
             "test-id", "bug_fixing", reader_result, file_contents
         )
         assert status == "completed_no_patches"
-        assert "no applicable patches" in reader_result.summary.lower() or \
-               "no concrete code changes" in reader_result.summary.lower()
+        assert (
+            "no applicable patches" in reader_result.summary.lower()
+            or "no concrete code changes" in reader_result.summary.lower()
+        )
         assert reader_result.confidence <= 0.3
 
     def test_zero_patches_code_analysis_is_completed(self):
@@ -471,6 +566,29 @@ class TestPatchParserIndentation:
         assert status == "completed"
         assert len(reader_result.patches) == 1
 
+    def test_missing_line_range_is_rejected(self):
+        """A parser default must not make a missing range look valid."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config, LLMConfig
+        from cgm_mcp.utils.llm_client import LLMClient
+
+        reader = ReaderComponent(LLMClient(LLMConfig(provider="mock")))
+        patch = reader._parse_single_patch(
+            "\nFile: main.py\n"
+            "Original Code:\n```\ndef foo():\n```\n"
+            "Modified Code:\n```\ndef foo(): return 42\n```\n"
+            "Explanation: fix\n"
+        )
+
+        assert patch is not None
+        status, _ = CGMServer(Config())._validate_reader_output(
+            "test-id",
+            "bug_fixing",
+            ReaderResponse(patches=[patch], summary="Fixed", confidence=0.8),
+            {"main.py": "def foo():\n"},
+        )
+        assert status == "completed_no_patches"
+
 
 class TestRepoPathValidationOrder:
     """Tests that repo path validation happens before graph traversal."""
@@ -587,6 +705,7 @@ class TestReaderHallucinationRegression:
 
         with patch.object(server.llm_client, "generate", side_effect=mock_generate):
             with tempfile.TemporaryDirectory() as tmp_dir:
+                server.config.server_config.allowed_root = tmp_dir
                 # Create test file with function after 1000 chars
                 padding = "# padding line\n" * 100  # >1000 chars
                 code = "def _run_leak_gate(data):\n    return {'blocked': True}\n"
@@ -608,8 +727,11 @@ class TestReaderHallucinationRegression:
                 assert result.status == "completed_no_patches"
 
                 # Summary must be sanitized
-                assert "no applicable patches" in result.reader_result.summary.lower() or \
-                       "no concrete code changes" in result.reader_result.summary.lower()
+                assert (
+                    "no applicable patches" in result.reader_result.summary.lower()
+                    or "no concrete code changes"
+                    in result.reader_result.summary.lower()
+                )
 
                 # Confidence must be capped
                 assert result.reader_result.confidence <= 0.3
@@ -677,6 +799,7 @@ class TestReaderHallucinationRegression:
 
         with patch.object(server.llm_client, "generate", side_effect=mock_generate):
             with tempfile.TemporaryDirectory() as tmp_dir:
+                server.config.server_config.allowed_root = tmp_dir
                 Path(tmp_dir, "main.py").write_text("def real_function():\n    pass\n")
 
                 result = await server._process_issue(

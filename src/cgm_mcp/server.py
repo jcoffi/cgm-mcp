@@ -6,6 +6,7 @@ Main server implementation using the Model Context Protocol (MCP)
 
 import asyncio
 import json
+import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -37,6 +38,7 @@ from .models import (
     CGMResponse,
     HealthCheckResponse,
     ReaderRequest,
+    ReaderResponse,
     RerankerRequest,
     RetrieverRequest,
     RewriterRequest,
@@ -286,7 +288,7 @@ class CGMServer:
 
             try:
                 # Step 0: Validate repository path before any I/O
-                allowed_root = self.config.server_config.allowed_root
+                allowed_root = self.config.server_config.allowed_root or os.getcwd()
                 repo_path = resolve_repo_path(
                     request.repository_name,
                     request.repository_context,
@@ -372,7 +374,7 @@ class CGMServer:
                     problem_statement=request.issue_description,
                     subgraph=retriever_result.subgraph,
                     top_files=reranker_result.top_files,
-                    repository_context=request.repository_context or {},
+                    repository_context=validated_context,
                     file_contents=top_file_contents,
                 )
                 reader_result = await self.reader.process(reader_request)
@@ -416,8 +418,6 @@ class CGMServer:
 
         Returns (status, error_message) tuple.
         """
-        from .models import ReaderResponse
-
         # Task types that require patches to be "completed"
         fix_task_types = {
             TaskType.BUG_FIXING,
@@ -453,12 +453,14 @@ class CGMServer:
 
         # Patches were produced - validate them
         valid_patches = []
+        invalid_patch_count = 0
         for patch in reader_result.patches:
             # Check patch targets a loaded file
             if patch.file_path not in file_contents:
                 logger.warning(
                     f"Task {task_id}: Patch targets unknown file: {patch.file_path}"
                 )
+                invalid_patch_count += 1
                 continue
 
             source = file_contents[patch.file_path]
@@ -469,6 +471,7 @@ class CGMServer:
                     f"Task {task_id}: Patch has empty original_code "
                     f"for {patch.file_path}"
                 )
+                invalid_patch_count += 1
                 continue
 
             if not patch.modified_code or not patch.modified_code.strip():
@@ -476,6 +479,7 @@ class CGMServer:
                     f"Task {task_id}: Patch has empty modified_code "
                     f"for {patch.file_path}"
                 )
+                invalid_patch_count += 1
                 continue
 
             # Validate line range
@@ -487,24 +491,34 @@ class CGMServer:
                     f"(source has {source_line_count} lines) "
                     f"for {patch.file_path}"
                 )
+                invalid_patch_count += 1
                 continue
 
-            # Check original_code exists in the source
-            if patch.original_code.strip() not in source:
+            original_code = patch.original_code.strip("\r\n")
+            source_range = "\n".join(
+                source.splitlines()[patch.line_start - 1 : patch.line_end]
+            )
+            if original_code not in source_range:
                 logger.warning(
-                    f"Task {task_id}: Patch original_code not found in source "
-                    f"for {patch.file_path}"
+                    f"Task {task_id}: Patch original_code not found in claimed "
+                    f"source range for {patch.file_path}"
                 )
+                invalid_patch_count += 1
                 continue
 
             valid_patches.append(patch)
 
-        if not valid_patches:
-            # All patches failed validation
+        if invalid_patch_count:
             logger.warning(
-                f"Task {task_id}: All {len(reader_result.patches)} patches "
-                f"failed validation."
+                f"Task {task_id}: Rejecting patch response because "
+                f"{invalid_patch_count} of {len(reader_result.patches)} patches "
+                "failed validation."
             )
+            valid_patches = []
+
+        if not valid_patches:
+            # At least one patch failed validation, or none were valid.
+            logger.warning(f"Task {task_id}: Patch response failed source validation.")
             reader_result.patches = []
             reader_result.summary = (
                 "Analysis completed but generated patches could not be validated "

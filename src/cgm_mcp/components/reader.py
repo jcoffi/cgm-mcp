@@ -231,12 +231,12 @@ Notes:
     def _parse_single_patch(self, patch_block: str) -> Optional[CodePatch]:
         """Parse a single patch block"""
         try:
-            lines = patch_block.strip().split("\n")
+            lines = patch_block.strip("\n").split("\n")
 
             file_path = ""
             description = ""
-            line_start = 1
-            line_end = 1
+            line_start = 0
+            line_end = 0
             original_code = ""
             modified_code = ""
             explanation = ""
@@ -247,28 +247,32 @@ Notes:
             for line in lines:
                 stripped = line.strip()
 
-                if stripped.startswith("File:"):
-                    file_path = stripped.replace("File:", "").strip()
-                elif stripped.startswith("Description:"):
-                    description = stripped.replace("Description:", "").strip()
-                elif stripped.startswith("Line Range:"):
-                    range_text = stripped.replace("Line Range:", "").strip()
+                if current_section is None and stripped.startswith("File:"):
+                    file_path = stripped.replace("File:", "", 1).strip()
+                elif current_section is None and stripped.startswith("Description:"):
+                    description = stripped.replace("Description:", "", 1).strip()
+                elif current_section is None and stripped.startswith("Line Range:"):
+                    range_text = stripped.replace("Line Range:", "", 1).strip()
                     if "-" in range_text:
-                        start, end = range_text.split("-")
+                        start, end = range_text.split("-", 1)
                         line_start = int(start.strip())
                         line_end = int(end.strip())
-                elif stripped.startswith("Original Code:"):
+                elif current_section is None and stripped.startswith("Original Code:"):
                     current_section = "original"
                     code_buffer = []
-                elif stripped.startswith("Modified Code:"):
+                elif current_section == "original" and stripped.startswith(
+                    "Modified Code:"
+                ):
                     if current_section == "original":
                         original_code = "\n".join(code_buffer)
                     current_section = "modified"
                     code_buffer = []
-                elif stripped.startswith("Explanation:"):
+                elif current_section == "modified" and stripped.startswith(
+                    "Explanation:"
+                ):
                     if current_section == "modified":
                         modified_code = "\n".join(code_buffer)
-                    explanation = stripped.replace("Explanation:", "").strip()
+                    explanation = stripped.replace("Explanation:", "", 1).strip()
                     current_section = "explanation"
                 elif stripped.startswith("```"):
                     # Skip code block markers
