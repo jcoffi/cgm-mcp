@@ -285,6 +285,25 @@ class CGMServer:
             start_time = datetime.now()
 
             try:
+                # Step 0: Validate repository path before any I/O
+                allowed_root = self.config.server_config.allowed_root
+                repo_path = resolve_repo_path(
+                    request.repository_name,
+                    request.repository_context,
+                    allowed_root=allowed_root,
+                )
+                if not repo_path:
+                    response.status = "insufficient_context"
+                    response.error_message = (
+                        "Repository path could not be resolved or is outside "
+                        "the allowed root directory."
+                    )
+                    response.processing_time = (
+                        datetime.now() - start_time
+                    ).total_seconds()
+                    self.tasks[task_id] = response
+                    return response
+
                 # Step 1: Rewriter
                 logger.info(f"Task {task_id}: Starting Rewriter")
                 rewriter_request = RewriterRequest(
@@ -296,10 +315,12 @@ class CGMServer:
                 response.rewriter_result = rewriter_result
                 response.status = "rewriter_completed"
 
-                # Step 2: Build/Get Repository Graph
+                # Step 2: Build/Get Repository Graph (using validated path)
                 logger.info(f"Task {task_id}: Building repository graph")
+                validated_context = dict(request.repository_context or {})
+                validated_context["path"] = repo_path
                 repo_graph = await self.graph_builder.build_graph(
-                    request.repository_name, request.repository_context
+                    request.repository_name, validated_context
                 )
 
                 # Step 3: Retriever
@@ -316,14 +337,6 @@ class CGMServer:
 
                 # Step 4: Reranker
                 logger.info(f"Task {task_id}: Starting Reranker")
-
-                # Resolve repository path using same logic as graph builder
-                allowed_root = self.config.server_config.allowed_root
-                repo_path = resolve_repo_path(
-                    request.repository_name,
-                    request.repository_context,
-                    allowed_root=allowed_root,
-                )
 
                 # Load file contents for reranker and reader
                 file_contents = load_file_contents(
@@ -448,9 +461,36 @@ class CGMServer:
                 )
                 continue
 
-            # Check original_code exists in the source
             source = file_contents[patch.file_path]
-            if patch.original_code and patch.original_code.strip() not in source:
+
+            # Require non-empty original and modified code
+            if not patch.original_code or not patch.original_code.strip():
+                logger.warning(
+                    f"Task {task_id}: Patch has empty original_code "
+                    f"for {patch.file_path}"
+                )
+                continue
+
+            if not patch.modified_code or not patch.modified_code.strip():
+                logger.warning(
+                    f"Task {task_id}: Patch has empty modified_code "
+                    f"for {patch.file_path}"
+                )
+                continue
+
+            # Validate line range
+            source_line_count = len(source.splitlines())
+            if not (1 <= patch.line_start <= patch.line_end <= source_line_count):
+                logger.warning(
+                    f"Task {task_id}: Patch has invalid line range "
+                    f"{patch.line_start}-{patch.line_end} "
+                    f"(source has {source_line_count} lines) "
+                    f"for {patch.file_path}"
+                )
+                continue
+
+            # Check original_code exists in the source
+            if patch.original_code.strip() not in source:
                 logger.warning(
                     f"Task {task_id}: Patch original_code not found in source "
                     f"for {patch.file_path}"

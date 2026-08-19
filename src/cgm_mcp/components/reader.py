@@ -245,38 +245,38 @@ Notes:
             code_buffer = []
 
             for line in lines:
-                line = line.strip()
+                stripped = line.strip()
 
-                if line.startswith("File:"):
-                    file_path = line.replace("File:", "").strip()
-                elif line.startswith("Description:"):
-                    description = line.replace("Description:", "").strip()
-                elif line.startswith("Line Range:"):
-                    range_text = line.replace("Line Range:", "").strip()
+                if stripped.startswith("File:"):
+                    file_path = stripped.replace("File:", "").strip()
+                elif stripped.startswith("Description:"):
+                    description = stripped.replace("Description:", "").strip()
+                elif stripped.startswith("Line Range:"):
+                    range_text = stripped.replace("Line Range:", "").strip()
                     if "-" in range_text:
                         start, end = range_text.split("-")
                         line_start = int(start.strip())
                         line_end = int(end.strip())
-                elif line.startswith("Original Code:"):
+                elif stripped.startswith("Original Code:"):
                     current_section = "original"
                     code_buffer = []
-                elif line.startswith("Modified Code:"):
+                elif stripped.startswith("Modified Code:"):
                     if current_section == "original":
                         original_code = "\n".join(code_buffer)
                     current_section = "modified"
                     code_buffer = []
-                elif line.startswith("Explanation:"):
+                elif stripped.startswith("Explanation:"):
                     if current_section == "modified":
                         modified_code = "\n".join(code_buffer)
-                    explanation = line.replace("Explanation:", "").strip()
+                    explanation = stripped.replace("Explanation:", "").strip()
                     current_section = "explanation"
-                elif line.startswith("```"):
+                elif stripped.startswith("```"):
                     # Skip code block markers
                     continue
                 elif current_section in ["original", "modified"]:
                     code_buffer.append(line)
                 elif current_section == "explanation":
-                    explanation += " " + line
+                    explanation += " " + stripped
 
             # Handle last section
             if current_section == "modified":

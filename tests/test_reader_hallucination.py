@@ -316,6 +316,196 @@ class TestPatchValidation:
         )
         assert status == "completed"
 
+    def test_patch_with_empty_original_code_rejected(self):
+        """Patches with empty original_code are rejected."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        server = CGMServer(Config())
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="",
+                    modified_code="new code",
+                    line_start=1,
+                    line_end=2,
+                    explanation="fix",
+                )
+            ],
+            summary="Fixed it",
+            confidence=0.8,
+        )
+        file_contents = {"main.py": "def foo():\n    pass\n"}
+
+        status, error = server._validate_reader_output(
+            "test-id", "bug_fixing", reader_result, file_contents
+        )
+        assert status == "completed_no_patches"
+        assert reader_result.patches == []
+
+    def test_patch_with_invalid_line_range_rejected(self):
+        """Patches with out-of-bounds line ranges are rejected."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        server = CGMServer(Config())
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="def foo():\n    pass",
+                    modified_code="def foo():\n    return 1",
+                    line_start=-10,
+                    line_end=9999,
+                    explanation="fix",
+                )
+            ],
+            summary="Fixed it",
+            confidence=0.8,
+        )
+        file_contents = {"main.py": "def foo():\n    pass\n"}
+
+        status, error = server._validate_reader_output(
+            "test-id", "bug_fixing", reader_result, file_contents
+        )
+        assert status == "completed_no_patches"
+        assert reader_result.patches == []
+
+    def test_patch_with_empty_modified_code_rejected(self):
+        """Patches with empty modified_code are rejected."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        server = CGMServer(Config())
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="def foo():\n    pass",
+                    modified_code="",
+                    line_start=1,
+                    line_end=2,
+                    explanation="fix",
+                )
+            ],
+            summary="Fixed it",
+            confidence=0.8,
+        )
+        file_contents = {"main.py": "def foo():\n    pass\n"}
+
+        status, error = server._validate_reader_output(
+            "test-id", "bug_fixing", reader_result, file_contents
+        )
+        assert status == "completed_no_patches"
+        assert reader_result.patches == []
+
+
+class TestPatchParserIndentation:
+    """Tests for patch parser preserving code indentation."""
+
+    def test_indented_code_preserved_in_parsing(self):
+        """Verify that _parse_single_patch preserves Python indentation."""
+        from cgm_mcp.utils.config import LLMConfig
+        from cgm_mcp.utils.llm_client import LLMClient
+
+        client = LLMClient(LLMConfig(provider="mock"))
+        reader = ReaderComponent(client)
+
+        patch_block = (
+            "\nFile: main.py\n"
+            "Description: Fix return value\n"
+            "Line Range: 1-3\n"
+            "Original Code:\n"
+            "```\n"
+            "def foo():\n"
+            "    if True:\n"
+            "        pass\n"
+            "```\n"
+            "Modified Code:\n"
+            "```\n"
+            "def foo():\n"
+            "    if True:\n"
+            "        return 42\n"
+            "```\n"
+            "Explanation: Fixed return\n"
+        )
+
+        patch = reader._parse_single_patch(patch_block)
+        assert patch is not None
+        assert "    if True:" in patch.original_code
+        assert "        pass" in patch.original_code
+        assert "    if True:" in patch.modified_code
+        assert "        return 42" in patch.modified_code
+
+    def test_indented_patch_passes_validation(self):
+        """E2E: indented patch that matches source passes validation."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config
+
+        server = CGMServer(Config())
+        source = "def foo():\n    if True:\n        pass\n"
+
+        reader_result = ReaderResponse(
+            patches=[
+                CodePatch(
+                    file_path="main.py",
+                    original_code="def foo():\n    if True:\n        pass",
+                    modified_code="def foo():\n    if True:\n        return 42",
+                    line_start=1,
+                    line_end=3,
+                    explanation="fix return value",
+                )
+            ],
+            summary="Fixed foo",
+            confidence=0.8,
+        )
+        file_contents = {"main.py": source}
+
+        status, error = server._validate_reader_output(
+            "test-id", "bug_fixing", reader_result, file_contents
+        )
+        assert status == "completed"
+        assert len(reader_result.patches) == 1
+
+
+class TestRepoPathValidationOrder:
+    """Tests that repo path validation happens before graph traversal."""
+
+    @pytest.mark.asyncio
+    async def test_out_of_root_rejected_before_graph(self):
+        """Out-of-root repo fails before any file I/O or graph construction."""
+        from cgm_mcp.server import CGMServer
+        from cgm_mcp.utils.config import Config, ServerConfig
+
+        config = Config()
+        with tempfile.TemporaryDirectory() as allowed_dir:
+            with tempfile.TemporaryDirectory() as outside_dir:
+                # Create a file in the outside dir to prove it's never read
+                Path(outside_dir, "secret.py").write_text("SECRET=True")
+                config.server_config.allowed_root = allowed_dir
+
+                server = CGMServer(config)
+                result = await server._process_issue(
+                    {
+                        "task_type": "bug_fixing",
+                        "repository_name": "evil_repo",
+                        "issue_description": "Steal secrets",
+                        "repository_context": {
+                            "path": outside_dir,
+                            "name": "evil_repo",
+                        },
+                    }
+                )
+
+                # Must fail before reaching rewriter/graph
+                assert result.status == "insufficient_context"
+                assert result.rewriter_result is None
+                assert result.retriever_result is None
+
 
 class TestReaderHallucinationRegression:
     """End-to-end regression: empty patches + change-claiming summary must be rejected."""
