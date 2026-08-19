@@ -44,6 +44,7 @@ from .models import (
 )
 from .utils.config import Config
 from .utils.llm_client import LLMClient
+from .utils.source_loader import load_file_contents
 
 
 class CGMServer:
@@ -315,6 +316,13 @@ class CGMServer:
 
                 # Step 4: Reranker
                 logger.info(f"Task {task_id}: Starting Reranker")
+
+                # Load file contents for reranker and reader
+                repo_path = self._get_repo_path(request.repository_context)
+                file_contents = load_file_contents(
+                    repo_path, retriever_result.relevant_files
+                ) if repo_path else {}
+
                 reranker_request = RerankerRequest(
                     problem_statement=request.issue_description,
                     repo_name=request.repository_name,
@@ -326,7 +334,7 @@ class CGMServer:
                         for f in retriever_result.relevant_files
                         if not f.endswith(".py")
                     ],
-                    file_contents={},  # TODO: Load file contents
+                    file_contents=file_contents,
                 )
                 reranker_result = await self.reranker.process(reranker_request)
                 response.reranker_result = reranker_result
@@ -334,17 +342,47 @@ class CGMServer:
 
                 # Step 5: Reader
                 logger.info(f"Task {task_id}: Starting Reader")
+
+                # Load source for top files specifically (may overlap with above)
+                top_file_contents = load_file_contents(
+                    repo_path, reranker_result.top_files
+                ) if repo_path else {}
+
                 reader_request = ReaderRequest(
                     problem_statement=request.issue_description,
                     subgraph=retriever_result.subgraph,
                     top_files=reranker_result.top_files,
                     repository_context=request.repository_context or {},
+                    file_contents=top_file_contents,
                 )
                 reader_result = await self.reader.process(reader_request)
                 response.reader_result = reader_result
-                response.status = "completed"
 
-                logger.info(f"Task {task_id}: Completed successfully")
+                # Validate reader output consistency
+                if not reader_result.patches:
+                    # No patches produced - check if summary claims changes
+                    if self._summary_claims_changes(reader_result.summary):
+                        logger.warning(
+                            f"Task {task_id}: Reader summary claims changes but "
+                            f"no patches were produced. Marking as insufficient_context."
+                        )
+                        reader_result.summary = (
+                            "Analysis completed but no applicable patches could be generated. "
+                            "The source was reviewed but no concrete code changes were produced."
+                        )
+                        reader_result.confidence = min(reader_result.confidence, 0.3)
+                        response.status = "completed_no_patches"
+                    elif not top_file_contents:
+                        response.status = "insufficient_context"
+                        response.error_message = (
+                            "Could not load source files for reader analysis."
+                        )
+                    else:
+                        response.status = "completed"
+                else:
+                    response.status = "completed"
+
+                logger.info(f"Task {task_id}: Completed with status {response.status}")
 
             except Exception as e:
                 logger.error(f"Task {task_id}: Error during processing: {e}")
@@ -364,6 +402,33 @@ class CGMServer:
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
             raise ValueError(f"Invalid request: {e}")
+
+    def _get_repo_path(self, repository_context: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Extract repository path from context."""
+        if repository_context and "path" in repository_context:
+            return repository_context["path"]
+        return None
+
+    def _summary_claims_changes(self, summary: str) -> bool:
+        """Detect if a summary claims code changes were made."""
+        if not summary:
+            return False
+        lower = summary.lower()
+        change_indicators = [
+            "the patches implement",
+            "patches implement",
+            "changes implement",
+            "code has been modified",
+            "has been updated",
+            "have been updated",
+            "now returns",
+            "now accepts",
+            "was changed to",
+            "were changed to",
+            "modified to",
+            "refactored to",
+        ]
+        return any(indicator in lower for indicator in change_indicators)
 
     async def _get_health_status(self) -> HealthCheckResponse:
         """Get server health status"""

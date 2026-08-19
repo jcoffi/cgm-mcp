@@ -177,6 +177,10 @@ class ReaderRequest(BaseModel):
     subgraph: Dict[str, Any] = Field(..., description="Code subgraph from retriever")
     top_files: List[str] = Field(..., description="Top files from reranker")
     repository_context: Dict[str, Any] = Field(..., description="Repository context")
+    file_contents: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Source contents of top files for grounded patch generation",
+    )
 
 
 class CodePatch(BaseModel):

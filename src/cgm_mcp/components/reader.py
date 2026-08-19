@@ -28,6 +28,7 @@ class ReaderComponent:
         subgraph: Dict[str, Any],
         top_files: List[str],
         repository_context: Dict[str, Any],
+        file_contents: Optional[Dict[str, str]] = None,
     ) -> str:
         """Generate prompt for code patch generation"""
 
@@ -36,6 +37,16 @@ class ReaderComponent:
 
         # Format top files information
         files_info = "\n".join([f"- {file}" for file in top_files])
+
+        # Format source content
+        source_section = ""
+        if file_contents:
+            source_parts = []
+            for file_path, content in file_contents.items():
+                source_parts.append(
+                    f"--- FILE: {file_path} ---\n{content}\n--- END FILE: {file_path} ---"
+                )
+            source_section = "\n\n".join(source_parts)
 
         prompt = f"""
 You are an expert software engineer tasked with generating code patches to resolve repository issues.
@@ -57,26 +68,47 @@ Framework: {repository_context.get('framework', 'N/A')}
 <top_relevant_files>
 {files_info}
 </top_relevant_files>
+"""
 
+        if source_section:
+            prompt += f"""
+<source_code>
+{source_section}
+</source_code>
+"""
+        else:
+            prompt += """
+<source_code>
+No source code available. You MUST NOT claim any code changes were made.
+If you cannot see the source code, state that analysis is incomplete due to missing source.
+</source_code>
+"""
+
+        prompt += """
 Task:
-Based on the issue description and the provided context, generate specific code patches that would resolve the issue.
+Based on the issue description and the provided source code, generate specific code patches that would resolve the issue.
 
 Instructions:
 1. Analysis:
    - Analyze the issue and identify the root cause
    - Determine which files need to be modified
    - Consider the relationships shown in the code graph
-   
+
 2. Patch Generation:
    - Generate specific code changes for each file that needs modification
+   - The "Original Code" MUST be an exact quote from the source code provided above
    - Provide the exact code that should be added, modified, or removed
    - Include line numbers or context for where changes should be applied
    - Ensure changes are minimal and focused on the issue
-   
+   - If no source code is available, do NOT generate patches
+
 3. Explanation:
    - Explain why each change is necessary
    - Describe how the changes resolve the issue
    - Consider potential side effects or dependencies
+
+IMPORTANT: Do NOT claim changes were made if no patches are generated.
+If you cannot produce patches, say so clearly in the summary.
 
 Respond in the following format:
 [start_of_analysis]
@@ -300,6 +332,7 @@ Notes:
                 request.subgraph,
                 request.top_files,
                 request.repository_context,
+                file_contents=request.file_contents,
             )
 
             # Generate patches using LLM
