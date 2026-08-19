@@ -44,7 +44,7 @@ from .models import (
 )
 from .utils.config import Config
 from .utils.llm_client import LLMClient
-from .utils.source_loader import load_file_contents
+from .utils.source_loader import load_file_contents, resolve_repo_path
 
 
 class CGMServer:
@@ -317,8 +317,15 @@ class CGMServer:
                 # Step 4: Reranker
                 logger.info(f"Task {task_id}: Starting Reranker")
 
+                # Resolve repository path using same logic as graph builder
+                allowed_root = self.config.server_config.allowed_root
+                repo_path = resolve_repo_path(
+                    request.repository_name,
+                    request.repository_context,
+                    allowed_root=allowed_root,
+                )
+
                 # Load file contents for reranker and reader
-                repo_path = self._get_repo_path(request.repository_context)
                 file_contents = load_file_contents(
                     repo_path, retriever_result.relevant_files
                 ) if repo_path else {}
@@ -343,7 +350,7 @@ class CGMServer:
                 # Step 5: Reader
                 logger.info(f"Task {task_id}: Starting Reader")
 
-                # Load source for top files specifically (may overlap with above)
+                # Load source for top files specifically
                 top_file_contents = load_file_contents(
                     repo_path, reranker_result.top_files
                 ) if repo_path else {}
@@ -358,29 +365,10 @@ class CGMServer:
                 reader_result = await self.reader.process(reader_request)
                 response.reader_result = reader_result
 
-                # Validate reader output consistency
-                if not reader_result.patches:
-                    # No patches produced - check if summary claims changes
-                    if self._summary_claims_changes(reader_result.summary):
-                        logger.warning(
-                            f"Task {task_id}: Reader summary claims changes but "
-                            f"no patches were produced. Marking as insufficient_context."
-                        )
-                        reader_result.summary = (
-                            "Analysis completed but no applicable patches could be generated. "
-                            "The source was reviewed but no concrete code changes were produced."
-                        )
-                        reader_result.confidence = min(reader_result.confidence, 0.3)
-                        response.status = "completed_no_patches"
-                    elif not top_file_contents:
-                        response.status = "insufficient_context"
-                        response.error_message = (
-                            "Could not load source files for reader analysis."
-                        )
-                    else:
-                        response.status = "completed"
-                else:
-                    response.status = "completed"
+                # Validate reader output
+                response.status, response.error_message = self._validate_reader_output(
+                    task_id, request.task_type, reader_result, top_file_contents
+                )
 
                 logger.info(f"Task {task_id}: Completed with status {response.status}")
 
@@ -403,32 +391,94 @@ class CGMServer:
             logger.error(f"Validation error: {e}")
             raise ValueError(f"Invalid request: {e}")
 
-    def _get_repo_path(self, repository_context: Optional[Dict[str, Any]]) -> Optional[str]:
-        """Extract repository path from context."""
-        if repository_context and "path" in repository_context:
-            return repository_context["path"]
-        return None
+    def _validate_reader_output(
+        self,
+        task_id: str,
+        task_type: str,
+        reader_result: "ReaderResponse",
+        file_contents: Dict[str, str],
+    ) -> tuple:
+        """
+        Validate reader output consistency.
 
-    def _summary_claims_changes(self, summary: str) -> bool:
-        """Detect if a summary claims code changes were made."""
-        if not summary:
-            return False
-        lower = summary.lower()
-        change_indicators = [
-            "the patches implement",
-            "patches implement",
-            "changes implement",
-            "code has been modified",
-            "has been updated",
-            "have been updated",
-            "now returns",
-            "now accepts",
-            "was changed to",
-            "were changed to",
-            "modified to",
-            "refactored to",
-        ]
-        return any(indicator in lower for indicator in change_indicators)
+        Returns (status, error_message) tuple.
+        """
+        from .models import ReaderResponse
+
+        # Task types that require patches to be "completed"
+        fix_task_types = {
+            TaskType.BUG_FIXING,
+            TaskType.FEATURE_IMPLEMENTATION,
+            TaskType.ISSUE_RESOLUTION,
+            "bug_fixing",
+            "feature_implementation",
+            "issue_resolution",
+        }
+
+        if not reader_result.patches:
+            # No patches produced
+            if not file_contents:
+                return (
+                    "insufficient_context",
+                    "Could not load source files for reader analysis.",
+                )
+
+            if task_type in fix_task_types:
+                # Fix/implementation tasks with no patches => not successful
+                logger.warning(
+                    f"Task {task_id}: No patches produced for {task_type} task."
+                )
+                reader_result.summary = (
+                    "Analysis completed but no applicable patches could be generated. "
+                    "No concrete code changes were produced."
+                )
+                reader_result.confidence = min(reader_result.confidence, 0.3)
+                return ("completed_no_patches", None)
+
+            # Analysis-only task type with no patches is acceptable
+            return ("completed", None)
+
+        # Patches were produced - validate them
+        valid_patches = []
+        for patch in reader_result.patches:
+            # Check patch targets a loaded file
+            if patch.file_path not in file_contents:
+                logger.warning(
+                    f"Task {task_id}: Patch targets unknown file: {patch.file_path}"
+                )
+                continue
+
+            # Check original_code exists in the source
+            source = file_contents[patch.file_path]
+            if patch.original_code and patch.original_code.strip() not in source:
+                logger.warning(
+                    f"Task {task_id}: Patch original_code not found in source "
+                    f"for {patch.file_path}"
+                )
+                continue
+
+            valid_patches.append(patch)
+
+        if not valid_patches:
+            # All patches failed validation
+            logger.warning(
+                f"Task {task_id}: All {len(reader_result.patches)} patches "
+                f"failed validation."
+            )
+            reader_result.patches = []
+            reader_result.summary = (
+                "Analysis completed but generated patches could not be validated "
+                "against the source code. No applicable changes were produced."
+            )
+            reader_result.confidence = min(reader_result.confidence, 0.2)
+
+            if task_type in fix_task_types:
+                return ("completed_no_patches", None)
+            return ("completed", None)
+
+        # Some patches are valid
+        reader_result.patches = valid_patches
+        return ("completed", None)
 
     async def _get_health_status(self) -> HealthCheckResponse:
         """Get server health status"""

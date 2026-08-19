@@ -51,6 +51,7 @@ class ServerConfig:
     log_level: str = "INFO"
     max_concurrent_tasks: int = 10
     task_timeout: int = 300  # seconds
+    allowed_root: Optional[str] = None  # If set, restricts repo access to this directory
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ServerConfig":
@@ -158,6 +159,9 @@ class Config:
                     os.getenv(
                         "CGM_TASK_TIMEOUT", server_config_data.get("task_timeout", 300)
                     )
+                ),
+                "allowed_root": os.getenv(
+                    "CGM_ALLOWED_ROOT", server_config_data.get("allowed_root")
                 ),
             }
         )
